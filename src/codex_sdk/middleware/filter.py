@@ -5,14 +5,14 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from ..event import CodexEventMsg
+from ..event import CodexEventMsg, AllEvents
 from .parser import parse_event_from_message
 
 
 class CodexEventFilter(logging.Filter):
     """Filter Codex MCP validation warnings while capturing event payloads."""
 
-    def __init__(self, event_queue: "asyncio.Queue[CodexEventMsg]") -> None:
+    def __init__(self, event_queue: "asyncio.Queue[AllEvents]") -> None:
         super().__init__()
         self._event_queue = event_queue
 
@@ -35,7 +35,7 @@ class CodexEventFilter(logging.Filter):
 
         return True
 
-    def _queue_event(self, event: CodexEventMsg) -> None:
+    def _queue_event(self, event: AllEvents) -> None:
         try:
             self._event_queue.put_nowait(event)
         except asyncio.QueueFull:

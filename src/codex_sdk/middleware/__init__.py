@@ -6,7 +6,7 @@ import asyncio
 import logging
 from typing import AsyncIterator, Optional
 
-from ..event import CodexEventMsg
+from ..event import CodexEventMsg, AllEvents
 from .filter import CodexEventFilter
 
 
@@ -14,7 +14,7 @@ class CodexMiddleware:
     """Capture Codex MCP events and expose them as an async stream."""
 
     def __init__(self) -> None:
-        self._event_queue: "asyncio.Queue[CodexEventMsg]" = asyncio.Queue()
+        self._event_queue: "asyncio.Queue[AllEvents]" = asyncio.Queue()
         self._filter = CodexEventFilter(self._event_queue)
 
     def install(self) -> None:
@@ -24,15 +24,15 @@ class CodexMiddleware:
         root_logger.addFilter(self._filter)
         logging.getLogger("mcp").setLevel(logging.ERROR)
 
-    async def get_event_stream(self) -> AsyncIterator[CodexEventMsg]:
+    async def get_event_stream(self) -> AsyncIterator[AllEvents]:
         """Yield typed events as they are captured from Codex."""
 
         consecutive_timeouts = 0
-        max_consecutive_timeouts = 50
+        max_consecutive_timeouts = 300
 
         while True:
             try:
-                event = await asyncio.wait_for(self._event_queue.get(), timeout=0.1)
+                event = await asyncio.wait_for(self._event_queue.get(), timeout=1.0)
                 consecutive_timeouts = 0
                 yield event
 
