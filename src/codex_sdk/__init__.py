@@ -26,14 +26,64 @@ Usage:
 from .session import Session
 from .message import Message
 from .exceptions import CodexError, ConnectionError, MessageError, ToolError
+from .event import (
+    AgentMessageDeltaEvent,
+    AgentMessageEvent,
+    AgentReasoningDeltaEvent,
+    AgentReasoningEvent,
+    AgentReasoningSectionBreakEvent,
+    CodexEvent,
+    CodexEventMsg,
+    Duration,
+    EventMetadata,
+    ExecCommandBeginEvent,
+    ExecCommandEndEvent,
+    ExecCommandOutputDeltaEvent,
+    ExecOutputStream,
+    McpToolCallBeginEvent,
+    McpToolCallEndEvent,
+    SessionConfiguredEvent,
+    TaskCompleteEvent,
+    TaskStartedEvent,
+    TokenCountEvent,
+    parse_event,
+)
+from .middleware import setup_mcp_middleware, get_middleware
 
 __version__ = "0.1.0"
 
 __all__ = [
+    # Core SDK
     "Session",
     "Message",
     "CodexError",
     "ConnectionError",
     "MessageError",
     "ToolError",
+
+    # Events
+    "AgentMessageDeltaEvent",
+    "AgentMessageEvent",
+    "AgentReasoningDeltaEvent",
+    "AgentReasoningEvent",
+    "AgentReasoningSectionBreakEvent",
+    "CodexEvent",
+    "CodexEventMsg",
+    "Duration",
+    "EventMetadata",
+    "ExecCommandBeginEvent",
+    "ExecCommandEndEvent",
+    "ExecCommandOutputDeltaEvent",
+    "ExecOutputStream",
+    "McpToolCallBeginEvent",
+    "McpToolCallEndEvent",
+    "SessionConfiguredEvent",
+    "TaskCompleteEvent",
+    "TaskStartedEvent",
+    "TokenCountEvent",
+    "parse_event",
+
+    # Middleware
+    "setup_mcp_middleware",
+    "get_middleware",
 ]

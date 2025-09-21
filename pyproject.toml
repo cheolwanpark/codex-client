@@ -6,4 +6,6 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "mcp>=1.14.1",
+    "pydantic>=2.0",
+    "pytest>=7.0",
 ]

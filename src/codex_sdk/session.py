@@ -1,7 +1,6 @@
 """Session class for managing Codex MCP connections and interactions."""
 
 import asyncio
-import logging
 from typing import Optional, Dict, Any, Union, AsyncIterator
 from contextlib import AsyncExitStack
 
@@ -10,7 +9,8 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 
 from .message import Message
 from .exceptions import ConnectionError, ToolError
-from .mcp_middleware import setup_mcp_middleware, get_middleware
+from .middleware import setup_mcp_middleware
+from .event import CodexEventMsg
 
 
 # Set up MCP middleware for streaming and warning suppression
@@ -30,10 +30,10 @@ class Session:
     def __init__(
         self,
         command: str = "codex",
-        args: Optional[list] = None,
+        args: Optional[list[str]] = None,
         env: Optional[Dict[str, str]] = None,
-        **kwargs
-    ):
+        **kwargs: Any
+    ) -> None:
         """
         Initialize a new Codex session.
 
@@ -46,7 +46,7 @@ class Session:
         if args is None:
             args = ["mcp", "serve"]
 
-        self._server_params = StdioServerParameters(
+        self._server_params: StdioServerParameters = StdioServerParameters(
             command=command,
             args=args,
             env=env,
@@ -79,7 +79,7 @@ class Session:
                 await self._exit_stack.aclose()
             raise ConnectionError(f"Failed to connect to Codex MCP server: {e}")
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         """Exit the async context manager and clean up resources."""
         if self._exit_stack:
             await self._exit_stack.aclose()
@@ -96,8 +96,8 @@ class Session:
         prompt: str,
         sandbox: Union[str, bool] = "read-only",
         approval_policy: str = "never",
-        **kwargs
-    ):
+        **kwargs: Any
+    ) -> AsyncIterator[Message]:
         """
         Send a chat message to Codex and return an async iterator of Message objects.
 
@@ -119,7 +119,7 @@ class Session:
 
         try:
             # Prepare tool arguments
-            tool_args = {
+            tool_args: Dict[str, Any] = {
                 "prompt": prompt,
                 **kwargs
             }
@@ -151,7 +151,7 @@ class Session:
             )
 
             # Create event stream that will capture events during the tool call
-            event_stream = None
+            event_stream: Optional[AsyncIterator[CodexEventMsg]] = None
             if _middleware:
                 event_stream = _middleware.get_event_stream()
 
@@ -161,7 +161,7 @@ class Session:
         except Exception as e:
             raise ToolError(f"Tool call failed: {e}")
 
-    def _extract_conversation_id(self, result) -> Optional[str]:
+    def _extract_conversation_id(self, result: Any) -> Optional[str]:
         """
         Try to extract conversation ID from the response.
 

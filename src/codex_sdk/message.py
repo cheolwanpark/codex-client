@@ -1,144 +1,142 @@
-"""Message class for handling Codex responses with streaming and final retrieval."""
+"""Message wrapper that streams Codex MCP events and exposes final output."""
+
+from __future__ import annotations
 
 import asyncio
-from typing import Optional, AsyncIterator, Any
+from typing import Any, AsyncIterator, List, Optional, TYPE_CHECKING
 
+from .event import CodexEventMsg, TaskCompleteEvent
 from .exceptions import MessageError
+
+if TYPE_CHECKING:
+    from .session import Session
 
 
 class Message:
-    """
-    Represents a message response from Codex with support for streaming and final retrieval.
+    """Represents a Codex response with streaming Codex events and final text access."""
 
-    Usage:
-        # Streaming approach
-        for part in message:
-            print(part)  # Handle delta events
-        final = await message.get()  # Get complete message
-
-        # Direct approach (ignore streaming)
-        final = await message.get()
-    """
-
-    def __init__(self, result_or_task: Any, event_stream: Optional[AsyncIterator] = None, session=None):
-        """Initialize with the MCP tool call result/task and optional event stream."""
+    def __init__(
+        self,
+        result_or_task: Any,
+        event_stream: Optional[AsyncIterator[CodexEventMsg]] = None,
+        session: Optional["Session"] = None,
+    ) -> None:
         self._result_or_task = result_or_task
-        self._event_stream = event_stream
         self._session = session
-        self._final_text: Optional[str] = None
-        self._extracted = False
-        self._streamed_text = ""
+
         self._result_cache: Optional[Any] = None
         self._task_completed = False
 
-    async def __aiter__(self) -> AsyncIterator[str]:
-        """
-        Async iterator for streaming delta events.
+        self._events: List[CodexEventMsg] = []
+        self._iter_index = 0
+        self._events_complete = event_stream is None
+        self._event_available: asyncio.Event = asyncio.Event()
+        self._stream_task: Optional[asyncio.Task[None]] = None
+        self._stream_error: Optional[BaseException] = None
+        self._last_agent_message: Optional[str] = None
 
-        Yields incremental text chunks as they arrive from Codex streaming events.
-        """
-        if self._event_stream:
-            # Stream from real events
-            async for event in self._event_stream:
-                # Only yield agent_message_delta events (actual response text)
-                if event.get('type') == 'agent_message_delta':
-                    delta = event.get('delta', '')
-                    if delta:
-                        self._streamed_text += delta
-                        yield delta
+        if event_stream is not None:
+            self._stream_task = asyncio.create_task(self._consume_events(event_stream))
         else:
-            # Fallback: if no event stream, yield the complete response
-            if not self._extracted:
-                await self._extract_text()
-            if self._final_text:
-                yield self._final_text
+            self._event_available.set()
+
+    def __aiter__(self) -> "Message":
+        """Return self so the message can be iterated for streaming events."""
+
+        return self
+
+    async def __anext__(self) -> CodexEventMsg:
+        """Return the next Codex event from the stream."""
+
+        while True:
+            if self._iter_index < len(self._events):
+                event = self._events[self._iter_index]
+                self._iter_index += 1
+                return event
+
+            if self._events_complete:
+                self._check_stream_error()
+                raise StopAsyncIteration
+
+            await self._wait_for_next_event()
+            self._check_stream_error()
 
     async def get(self) -> str:
-        """
-        Get the complete final message text.
+        """Return the final message taken from the TaskComplete event."""
 
-        This method works both after streaming and without streaming.
-
-        Returns:
-            The complete message text from Codex.
-
-        Raises:
-            MessageError: If the message text cannot be extracted.
-        """
-        # Always ensure the task completes to avoid TaskGroup errors
         await self._get_result()
+        await self._ensure_events_collected()
 
-        # If we have streamed text, return it
-        if self._streamed_text:
-            return self._streamed_text
+        if self._last_agent_message is not None:
+            return self._last_agent_message
 
-        # Extract from final result
-        if not self._extracted:
-            await self._extract_text()
+        raise MessageError("Task completion event not received or missing last_agent_message")
 
-        if self._final_text is None:
-            raise MessageError("Failed to extract message text from response")
+    async def _consume_events(self, event_stream: AsyncIterator[CodexEventMsg]) -> None:
+        try:
+            async for event in event_stream:
+                self._events.append(event)
+                if isinstance(event, TaskCompleteEvent):
+                    self._last_agent_message = event.last_agent_message
+                self._event_available.set()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            self._stream_error = exc
+            self._event_available.set()
+            raise
+        finally:
+            self._events_complete = True
+            self._event_available.set()
 
-        return self._final_text
+    async def _wait_for_next_event(self) -> None:
+        await self._event_available.wait()
+        self._event_available.clear()
+
+    def _check_stream_error(self) -> None:
+        if self._stream_error:
+            raise MessageError("Failed to stream Codex events") from self._stream_error
+
+    async def _ensure_events_collected(self) -> None:
+        if self._stream_task:
+            try:
+                await self._stream_task
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                if self._stream_error is None:
+                    self._stream_error = exc
+        self._check_stream_error()
 
     async def _get_result(self) -> Any:
-        """Get the result, waiting for task completion if needed."""
         if self._result_cache is not None:
             return self._result_cache
 
-        # Check if this is a task or a direct result
-        if hasattr(self._result_or_task, 'done') and callable(self._result_or_task.done):
-            # It's an asyncio Task
+        if hasattr(self._result_or_task, "done") and callable(self._result_or_task.done):
             try:
                 result = await self._result_or_task
                 self._result_cache = result
                 self._task_completed = True
 
-                # Update conversation ID in session if needed
                 if self._session and not self._session._conversation_id:
                     self._session._conversation_id = self._session._extract_conversation_id(result)
 
                 return result
-            except Exception as e:
+            except Exception:
                 self._task_completed = True
                 raise
-        else:
-            # It's a direct result
-            self._result_cache = self._result_or_task
-            return self._result_or_task
 
-    def __del__(self):
-        """Cleanup when message is destroyed."""
-        # Cancel the task if it's still running to prevent TaskGroup errors
-        if (hasattr(self._result_or_task, 'done') and
-            callable(self._result_or_task.done) and
-            not self._task_completed and
-            not self._result_or_task.done()):
+        self._result_cache = self._result_or_task
+        return self._result_or_task
+
+    def __del__(self) -> None:
+        if (
+            hasattr(self._result_or_task, "done")
+            and callable(self._result_or_task.done)
+            and not self._task_completed
+            and not self._result_or_task.done()
+        ):
             self._result_or_task.cancel()
 
-    async def _extract_text(self) -> None:
-        """Extract the text content from the MCP result."""
-        if self._extracted:
-            return
-
-        result = await self._get_result()
-
-        try:
-            if hasattr(result, 'content') and result.content:
-                text_parts = []
-                for item in result.content:
-                    if hasattr(item, 'text'):
-                        text_parts.append(item.text)
-
-                if text_parts:
-                    self._final_text = '\n'.join(text_parts)
-                else:
-                    self._final_text = ""
-            else:
-                self._final_text = ""
-
-        except Exception as e:
-            raise MessageError(f"Failed to extract text from response: {e}")
-
-        finally:
-            self._extracted = True
+        if self._stream_task and not self._stream_task.done():
+            self._stream_task.cancel()

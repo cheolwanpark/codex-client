@@ -10,7 +10,7 @@ This script demonstrates the usage pattern:
 
 import asyncio
 import sys
-from src.codex_sdk import Session
+from src.codex_sdk import *
 
 
 async def main():
@@ -35,23 +35,50 @@ async def main():
             print("✅ Connected to Codex")
 
             print("📝 Streaming response:")
+            config = {
+                "mcp_servers.context7": {
+                    "args": [
+                        "-y",
+                        "@upstash/context7-mcp",
+                        "--api-key",
+                        "ctx7sk-93e85b8b-f1c1-47b9-886a-0be32c255f1f"
+                    ],
+                    "command": "npx"
+                }
+            }
             i = 0
-            last_message = None
-            async for message in session.chat(prompt):
+            async for message in session.chat(prompt, config=config):
                 i += 1
                 print(f"Message {i}")
                 async for part in message:
-                    print(part, end='', flush=True)
+                    # Agent Message: Delta event -> ... -> Message event
+                    if isinstance(part, AgentMessageDeltaEvent):
+                        print(part.delta, end='', flush=True)
+                    elif isinstance(part, AgentMessageEvent):
+                        print("\nMessage complete.")
+
+                    # Reasoning: Section break event -> Reasoning delta event -> ... -> Reasoning event
+                    elif isinstance(part, AgentReasoningSectionBreakEvent):
+                        print(f"🤔 Reasoning: ", end='')
+                    elif isinstance(part, AgentReasoningDeltaEvent):
+                        print(part.delta, end='', flush=True)
+                    elif isinstance(part, AgentReasoningEvent):
+                        print("\nReasoning complete.")
+
+                    # MCP Tool Call: Begin event -> End event
+                    elif isinstance(part, McpToolCallBeginEvent):
+                        print(f"\n🔧 Tool Call: {part.invocation.server}.{part.invocation.tool}(", end='')
+                        print(", ".join(f"{k}={v}" for k, v in part.invocation.arguments.items()), end=')\n')
+                    elif isinstance(part, McpToolCallEndEvent):
+                        print(f"\n🔧 Tool Call End: {part.invocation.tool}, Duration: {part.duration.secs}s")
+
                 print()
-                last_message = message
+                msg = await message.get()
+                print(f"📋 Message length: {len(msg)} characters")
 
             print("\n")
             print("-" * 40)
 
-            # Get final message (should work after streaming)
-            if last_message:
-                final = await last_message.get()
-                print(f"📋 Final message length: {len(final)} characters")
             print("✅ Test completed successfully!")
 
     except Exception as e:
