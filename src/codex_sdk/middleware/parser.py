@@ -26,9 +26,12 @@ def extract_event_payload(message: str) -> Optional[Dict[str, Any]]:
         if isinstance(params, dict):
             msg = params.get("msg")
             meta = params.get("_meta")
+            conversation_id = params.get("conversationId")
             if isinstance(msg, dict) and isinstance(meta, dict):
                 event_dict = dict(msg)
                 event_dict["_meta"] = meta
+                if conversation_id is not None:
+                    event_dict["conversationId"] = conversation_id
                 return event_dict
 
     return None

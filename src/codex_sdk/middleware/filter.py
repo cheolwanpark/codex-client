@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from ..event import CodexEventMsg, AllEvents
+from ..event import AllEvents
 from .parser import parse_event_from_message
 
 

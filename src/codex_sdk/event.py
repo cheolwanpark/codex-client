@@ -199,6 +199,9 @@ class EventMsg(BaseModel):
     """Base class for all event messages."""
 
     type: str
+    conversation_id: Optional[str] = Field(None, alias="conversationId")
+
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
 
 # Event Type Definitions
@@ -359,6 +362,7 @@ class McpEventParams(BaseModel):
     meta: Optional[OutgoingNotificationMeta] = Field(None, alias="_meta")
     id: str
     msg: AllEvents  # Use discriminated union instead of generic EventMsg
+    conversation_id: Optional[str] = Field(None, alias="conversationId")
 
     model_config = ConfigDict(populate_by_name=True)
 

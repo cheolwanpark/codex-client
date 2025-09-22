@@ -1,31 +1,20 @@
-"""
-Codex SDK - A minimal library for programmatic control of Codex.
+"""Codex SDK - A minimal library for programmatic control of Codex.
 
-Usage:
-    from codex_sdk import Session
+Example:
+    from codex_sdk import Client
 
-    async with Session() as session:
-        # Single message usage
-        async for message in session.chat("Hello, Codex!"):
-            # Stream the response
-            async for part in message:
-                print(part, end='', flush=True)
+    async with Client() as client:
+        chat = await client.create_chat("Hello, Codex!")
 
-            # Or get the complete response
-            response = await message.get()
-            print(response)
+        async for event in chat:
+            print(event)
 
-        # Multiple messages usage
-        async for i, message in enumerate(session.chat("Tell me a story in two parts")):
-            print(f"Message {i+1}")
-            async for part in message:
-                print(part, end='', flush=True)
-            print()
+        await chat.resume("Can you elaborate?")
 """
 
-from .session import Session
-from .message import Message
-from .exceptions import CodexError, ConnectionError, MessageError, ToolError
+from .client import Client
+from .chat import Chat
+from .exceptions import CodexError, ConnectionError, ChatError, ToolError
 from .event import (
     AgentMessageDeltaEvent,
     AgentMessageEvent,
@@ -53,11 +42,11 @@ __version__ = "0.1.0"
 
 __all__ = [
     # Core SDK
-    "Session",
-    "Message",
+    "Client",
+    "Chat",
     "CodexError",
     "ConnectionError",
-    "MessageError",
+    "ChatError",
     "ToolError",
 
     # Events

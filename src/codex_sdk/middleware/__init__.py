@@ -6,7 +6,7 @@ import asyncio
 import logging
 from typing import AsyncIterator, Optional
 
-from ..event import CodexEventMsg, AllEvents
+from ..event import AllEvents
 from .filter import CodexEventFilter
 
 
@@ -35,7 +35,6 @@ class CodexMiddleware:
                 event = await asyncio.wait_for(self._event_queue.get(), timeout=1.0)
                 consecutive_timeouts = 0
                 yield event
-
                 if getattr(event, "type", None) == "task_complete":
                     break
             except asyncio.TimeoutError:

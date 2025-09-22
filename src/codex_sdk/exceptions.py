@@ -11,8 +11,8 @@ class ConnectionError(CodexError):
     pass
 
 
-class MessageError(CodexError):
-    """Raised when there's an issue with message handling or retrieval."""
+class ChatError(CodexError):
+    """Raised when there's an issue with chat handling or retrieval."""
     pass
 
 

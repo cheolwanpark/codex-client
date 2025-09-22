@@ -39,7 +39,7 @@ async def main():
     print("-" * 40)
 
     try:
-        async with Session() as session:
+        async with Client() as client:
             print("✅ Connected to Codex")
 
             print("📝 Streaming response:")
@@ -54,86 +54,95 @@ async def main():
                     "command": "npx"
                 }
             }
-            i = 0
-            async for message in session.chat(prompt, config=config):
-                i += 1
-                print(f"Message {i}")
-                async for part in message:
+            chat = await client.create_chat(prompt, config=config)
+            
+            turn = 1
+
+            while True:
+                print(f"🔄 Turn {turn}")
+                async for event in chat:
                     # Agent Message: Delta event -> ... -> Message event
-                    if isinstance(part, AgentMessageDeltaEvent):
-                        print(part.delta, end='', flush=True)
-                    elif isinstance(part, AgentMessageEvent):
+                    if isinstance(event, AgentMessageDeltaEvent):
+                        print(event.delta, end='', flush=True)
+                    elif isinstance(event, AgentMessageEvent):
                         print("\nMessage complete.")
 
                     # Reasoning: Section break event -> Reasoning delta event -> ... -> Reasoning event
-                    elif isinstance(part, AgentReasoningSectionBreakEvent):
+                    elif isinstance(event, AgentReasoningSectionBreakEvent):
                         print(f"🤔 Reasoning: ", end='')
-                    elif isinstance(part, AgentReasoningDeltaEvent):
-                        print(part.delta, end='', flush=True)
-                    elif isinstance(part, AgentReasoningEvent):
+                    elif isinstance(event, AgentReasoningDeltaEvent):
+                        print(event.delta, end='', flush=True)
+                    elif isinstance(event, AgentReasoningEvent):
                         print("\nReasoning complete.")
 
                     # Command Execution: Begin -> Output Delta -> End
-                    elif isinstance(part, ExecCommandBeginEvent):
-                        cmd_str = ' '.join(part.command)
+                    elif isinstance(event, ExecCommandBeginEvent):
+                        cmd_str = ' '.join(event.command)
                         print(f"\n⚡ Executing: {cmd_str}")
-                    elif isinstance(part, ExecCommandOutputDeltaEvent):
+                    elif isinstance(event, ExecCommandOutputDeltaEvent):
                         try:
-                            output = part.decoded_text
+                            output = event.decoded_text
                             print(output, end='', flush=True)
                         except UnicodeDecodeError:
-                            print(f"[binary: {len(part.decoded_chunk)} bytes]", end='', flush=True)
-                    elif isinstance(part, ExecCommandEndEvent):
-                        duration = part.duration.total_seconds()
-                        if part.exit_code == 0:
+                            print(f"[binary: {len(event.decoded_chunk)} bytes]", end='', flush=True)
+                    elif isinstance(event, ExecCommandEndEvent):
+                        duration = event.duration.total_seconds()
+                        if event.exit_code == 0:
                             print(f"\n✅ Command completed in {duration:.3f}s")
                         else:
-                            print(f"\n❌ Command failed (exit {part.exit_code}) in {duration:.3f}s")
+                            print(f"\n❌ Command failed (exit {event.exit_code}) in {duration:.3f}s")
 
                     # Session/Task Lifecycle
-                    elif isinstance(part, SessionConfiguredEvent):
-                        print(f"\n🔧 Session configured: {part.model}")
-                        if part.reasoning_effort:
-                            print(f"   Reasoning effort: {part.reasoning_effort.value}")
-                    elif isinstance(part, TaskStartedEvent):
-                        if part.model_context_window:
-                            print(f"\n🚀 Task started (context: {part.model_context_window:,} tokens)")
+                    elif isinstance(event, SessionConfiguredEvent):
+                        print(f"\n🔧 Session configured: {event.model}")
+                        if event.reasoning_effort:
+                            print(f"   Reasoning effort: {event.reasoning_effort.value}")
+                    elif isinstance(event, TaskStartedEvent):
+                        if event.model_context_window:
+                            print(f"\n🚀 Task started (context: {event.model_context_window:,} tokens)")
                         else:
                             print(f"\n🚀 Task started")
-                    elif isinstance(part, TaskCompleteEvent):
+                    elif isinstance(event, TaskCompleteEvent):
                         print(f"\n🎉 Task complete")
-                        if part.last_agent_message:
-                            print(f"   Final message: {part.last_agent_message[:100]}...")
+                        if event.last_agent_message:
+                            print(f"   Final message: {event.last_agent_message[:100]}...")
 
                     # Token Usage
-                    elif isinstance(part, TokenCountEvent):
-                        if part.info:
-                            total = part.info.total_token_usage.total_tokens
-                            last = part.info.last_token_usage.total_tokens
+                    elif isinstance(event, TokenCountEvent):
+                        if event.info:
+                            total = event.info.total_token_usage.total_tokens
+                            last = event.info.last_token_usage.total_tokens
                             print(f"\n💰 Tokens: {total:,} total, +{last:,} this turn")
 
                     # MCP Tool Call: Begin event -> End event
-                    elif isinstance(part, McpToolCallBeginEvent):
-                        print(f"\n🔧 Tool Call: {part.invocation.server}.{part.invocation.tool}(", end='')
-                        if part.invocation.arguments:
-                            print(", ".join(f"{k}={v}" for k, v in part.invocation.arguments.items()), end=')\n')
+                    elif isinstance(event, McpToolCallBeginEvent):
+                        print(f"\n🔧 Tool Call: {event.invocation.server}.{event.invocation.tool}(", end='')
+                        if event.invocation.arguments:
+                            print(", ".join(f"{k}={v}" for k, v in event.invocation.arguments.items()), end=')\n')
                         else:
                             print(')\n', end='')
-                    elif isinstance(part, McpToolCallEndEvent):
-                        duration = part.duration.total_seconds()
-                        print(f"\n🔧 Tool Call End: {part.invocation.tool}, Duration: {duration:.3f}s")
+                    elif isinstance(event, McpToolCallEndEvent):
+                        duration = event.duration.total_seconds()
+                        print(f"\n🔧 Tool Call End: {event.invocation.tool}, Duration: {duration:.3f}s")
                         # Handle Rust Result wrapper
-                        if hasattr(part.result, 'Ok'):
-                            print(f"   ✅ Success: {len(part.result.Ok.content)} content block(s)")
-                        elif hasattr(part.result, 'Err'):
-                            print(f"   ❌ Error: {part.result.Err}")
+                        if hasattr(event.result, 'Ok'):
+                            print(f"   ✅ Success: {len(event.result.Ok.content)} content block(s)")
+                        elif hasattr(event.result, 'Err'):
+                            print(f"   ❌ Error: {event.result.Err}")
 
                 print()
-                msg = await message.get()
+                msg = await chat.get()
                 print(f"📋 Message length: {len(msg)} characters")
 
-            print("\n")
-            print("-" * 40)
+                print("\n")
+                print("-" * 40)
+
+                prompt = input("Enter your next prompt (or leave empty to quit): ").strip()
+                if not prompt:
+                    print("👋 Goodbye!")
+                    break
+                await chat.resume(prompt)
+                turn += 1
 
             print("✅ Test completed successfully!")
 
