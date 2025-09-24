@@ -36,6 +36,12 @@ from .event import (
     TokenCountEvent,
     parse_event,
 )
+from .structured import (
+    AssistantMessageStream,
+    CommandStream,
+    ReasoningStream,
+    structured,
+)
 from .middleware import setup_mcp_middleware, get_middleware
 
 __version__ = "0.1.0"
@@ -69,6 +75,12 @@ __all__ = [
     "TaskStartedEvent",
     "TokenCountEvent",
     "parse_event",
+
+    # Structured stream helpers
+    "structured",
+    "AssistantMessageStream",
+    "ReasoningStream",
+    "CommandStream",
 
     # Middleware
     "setup_mcp_middleware",

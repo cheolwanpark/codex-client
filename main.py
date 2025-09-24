@@ -12,12 +12,15 @@ import asyncio
 import sys
 from src.codex_sdk import *
 from src.codex_sdk.event import (
-    AgentMessageEvent, AgentMessageDeltaEvent,
-    AgentReasoningEvent, AgentReasoningDeltaEvent, AgentReasoningSectionBreakEvent,
-    ExecCommandBeginEvent, ExecCommandEndEvent, ExecCommandOutputDeltaEvent,
     McpToolCallBeginEvent, McpToolCallEndEvent,
-    SessionConfiguredEvent, TaskStartedEvent, TaskCompleteEvent,
+    SessionConfiguredEvent, TaskCompleteEvent, TaskStartedEvent,
     TokenCountEvent
+)
+from src.codex_sdk.structured import (
+    AssistantMessageStream,
+    CommandStream,
+    ReasoningStream,
+    structured
 )
 
 
@@ -60,75 +63,82 @@ async def main():
 
             while True:
                 print(f"🔄 Turn {turn}")
-                async for event in chat:
-                    # Agent Message: Delta event -> ... -> Message event
-                    if isinstance(event, AgentMessageDeltaEvent):
-                        print(event.delta, end='', flush=True)
-                    elif isinstance(event, AgentMessageEvent):
+                async for event in structured(chat):
+                    # Aggregated assistant response stream
+                    if isinstance(event, AssistantMessageStream):
+                        async for chunk in event.stream():
+                            print(chunk, end='', flush=True)
                         print("\nMessage complete.")
+                        continue
 
-                    # Reasoning: Section break event -> Reasoning delta event -> ... -> Reasoning event
-                    elif isinstance(event, AgentReasoningSectionBreakEvent):
-                        print(f"🤔 Reasoning: ", end='')
-                    elif isinstance(event, AgentReasoningDeltaEvent):
-                        print(event.delta, end='', flush=True)
-                    elif isinstance(event, AgentReasoningEvent):
+                    # Aggregated reasoning stream
+                    if isinstance(event, ReasoningStream):
+                        print("🤔 Reasoning: ", end='')
+                        async for chunk in event.stream():
+                            print(chunk, end='', flush=True)
                         print("\nReasoning complete.")
+                        continue
 
-                    # Command Execution: Begin -> Output Delta -> End
-                    elif isinstance(event, ExecCommandBeginEvent):
+                    # Aggregated command execution stream
+                    if isinstance(event, CommandStream):
                         cmd_str = ' '.join(event.command)
                         print(f"\n⚡ Executing: {cmd_str}")
-                    elif isinstance(event, ExecCommandOutputDeltaEvent):
-                        try:
-                            output = event.decoded_text
-                            print(output, end='', flush=True)
-                        except UnicodeDecodeError:
-                            print(f"[binary: {len(event.decoded_chunk)} bytes]", end='', flush=True)
-                    elif isinstance(event, ExecCommandEndEvent):
-                        duration = event.duration.total_seconds()
-                        if event.exit_code == 0:
-                            print(f"\n✅ Command completed in {duration:.3f}s")
-                        else:
-                            print(f"\n❌ Command failed (exit {event.exit_code}) in {duration:.3f}s")
+                        async for chunk in event.stream():
+                            if chunk.text is not None:
+                                print(chunk.text, end='', flush=True)
+                            else:
+                                print(f"[binary: {len(chunk.data)} bytes]", end='', flush=True)
+                        if event.exit_code is not None:
+                            duration = event.duration.total_seconds() if event.duration else None
+                            status = "✅" if event.exit_code == 0 else "❌"
+                            summary = f"{status} Command exited {event.exit_code}"
+                            if duration is not None:
+                                summary += f" in {duration:.3f}s"
+                            print(f"\n{summary}")
+                        continue
 
                     # Session/Task Lifecycle
-                    elif isinstance(event, SessionConfiguredEvent):
+                    if isinstance(event, SessionConfiguredEvent):
                         print(f"\n🔧 Session configured: {event.model}")
                         if event.reasoning_effort:
                             print(f"   Reasoning effort: {event.reasoning_effort.value}")
-                    elif isinstance(event, TaskStartedEvent):
+                        continue
+                    if isinstance(event, TaskStartedEvent):
                         if event.model_context_window:
                             print(f"\n🚀 Task started (context: {event.model_context_window:,} tokens)")
                         else:
                             print(f"\n🚀 Task started")
-                    elif isinstance(event, TaskCompleteEvent):
+                        continue
+                    if isinstance(event, TaskCompleteEvent):
                         print(f"\n🎉 Task complete")
                         if event.last_agent_message:
                             print(f"   Final message: {event.last_agent_message[:100]}...")
+                        continue
 
                     # Token Usage
-                    elif isinstance(event, TokenCountEvent):
+                    if isinstance(event, TokenCountEvent):
                         if event.info:
                             total = event.info.total_token_usage.total_tokens
                             last = event.info.last_token_usage.total_tokens
                             print(f"\n💰 Tokens: {total:,} total, +{last:,} this turn")
+                        continue
 
                     # MCP Tool Call: Begin event -> End event
-                    elif isinstance(event, McpToolCallBeginEvent):
+                    if isinstance(event, McpToolCallBeginEvent):
                         print(f"\n🔧 Tool Call: {event.invocation.server}.{event.invocation.tool}(", end='')
                         if event.invocation.arguments:
                             print(", ".join(f"{k}={v}" for k, v in event.invocation.arguments.items()), end=')\n')
                         else:
                             print(')\n', end='')
-                    elif isinstance(event, McpToolCallEndEvent):
+                        continue
+                    if isinstance(event, McpToolCallEndEvent):
                         duration = event.duration.total_seconds()
                         print(f"\n🔧 Tool Call End: {event.invocation.tool}, Duration: {duration:.3f}s")
-                        # Handle Rust Result wrapper
                         if hasattr(event.result, 'Ok'):
                             print(f"   ✅ Success: {len(event.result.Ok.content)} content block(s)")
                         elif hasattr(event.result, 'Err'):
                             print(f"   ❌ Error: {event.result.Err}")
+                        continue
 
                 print()
                 msg = await chat.get()
