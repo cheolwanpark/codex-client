@@ -8,9 +8,9 @@ Codex Client is a lightweight, community-maintained Python wrapper around the Co
 
 ```bash
 # clone this repository, then install in a virtual environment
-pip install -e .
+pip install codex-client
 # or, if you use uv
-uv pip install -e .
+uv pip install codex-client
 ```
 
 Ensure the `codex` executable is on your `PATH`, since the client shells out to `codex mcp serve` under the hood.
