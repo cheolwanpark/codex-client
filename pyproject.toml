@@ -32,6 +32,9 @@ dependencies = [
     "pytest>=7.0",
 ]
 
+[project.scripts]
+codex-client = "codex_sdk.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/cheolwanpark/codex-client"
 Repository = "https://github.com/cheolwanpark/codex-client"

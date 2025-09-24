@@ -15,6 +15,38 @@ uv pip install codex-client
 
 Ensure the `codex` executable is on your `PATH`, since the client shells out to `codex mcp serve` under the hood.
 
+## Authentication quick start
+
+The bundled CLI wraps the official Codex login helper so you can capture and reuse credentials safely.
+
+```bash
+# Launch the Codex login flow, witness the browser open, and wait for success
+codex-client login
+
+# Prefer to launch the browser yourself? Pass --no-browser and follow the prompt
+codex-client login --no-browser
+
+# See the stored payload (compressed base64) and copy it to another machine
+codex-client read
+
+# Import the copied payload into a fresh environment
+codex-client set "<payload>"
+
+# Clear local credentials when finished
+codex-client logout
+```
+
+On the receiving machine you can also drop straight into Python:
+
+```python
+from codex_sdk.auth import CodexAuth
+
+auth = CodexAuth(codex_command="codex-client")
+auth.set("<payload-from-read>")
+# later, confirm or refresh as needed
+token = auth.read()
+```
+
 ## Core Concepts
 
 - **Client lifecycle** – `codex_sdk.Client` manages the background MCP session. Use it as an async context manager to guarantee clean startup and teardown.
