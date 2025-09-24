@@ -14,6 +14,15 @@ Example:
 
 from .client import Client
 from .chat import Chat
+from .config import (
+    CodexChatConfig,
+    CodexMcpServer,
+    CodexProfile,
+    ApprovalPolicy,
+    SandboxMode,
+    ReasoningEffort,
+    Verbosity,
+)
 from .exceptions import CodexError, ConnectionError, ChatError, ToolError
 from .event import (
     AgentMessageDeltaEvent,
@@ -54,6 +63,15 @@ __all__ = [
     "ConnectionError",
     "ChatError",
     "ToolError",
+
+    # Config
+    "CodexChatConfig",
+    "CodexProfile",
+    "CodexMcpServer",
+    "ApprovalPolicy",
+    "SandboxMode",
+    "ReasoningEffort",
+    "Verbosity",
 
     # Events
     "AgentMessageDeltaEvent",

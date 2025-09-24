@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, AsyncIterator, Dict, List, Optional, TYPE_CHECKING, Union
+from typing import Any, AsyncIterator, Dict, List, Optional, TYPE_CHECKING
 
 from .event import CodexEventMsg, TaskCompleteEvent, SessionConfiguredEvent, AllEvents
 from .exceptions import ChatError
 
 if TYPE_CHECKING:
     from .client import Client
+    from .config import CodexChatConfig
 
 
 class Chat:
@@ -80,15 +81,11 @@ class Chat:
         self,
         *,
         prompt: str,
-        sandbox: Union[str, bool, None],
-        approval_policy: str,
-        extra_tool_args: Dict[str, Any],
+        config: "CodexChatConfig",
     ) -> None:
         tool_name, tool_args = self._client._build_initial_tool_args(
             prompt=prompt,
-            sandbox=sandbox,
-            approval_policy=approval_policy,
-            extra_tool_args=extra_tool_args,
+            config=config,
         )
 
         await self._launch_tool(tool_name, tool_args)

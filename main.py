@@ -46,17 +46,26 @@ async def main():
             print("✅ Connected to Codex")
 
             print("📝 Streaming response:")
-            config = {
-                "mcp_servers.context7": {
-                    "args": [
-                        "-y",
-                        "@upstash/context7-mcp",
-                        "--api-key",
-                        "ctx7sk-93e85b8b-f1c1-47b9-886a-0be32c255f1f"
-                    ],
-                    "command": "npx"
-                }
-            }
+            config = CodexChatConfig(
+                profile=CodexProfile(
+                    model="gpt-5",
+                    reasoning_effort=ReasoningEffort.MINIMAL,
+                    verbosity=Verbosity.HIGH,
+                    sandbox=SandboxMode.DANGER_FULL_ACCESS,
+                ),
+                mcp_servers=[
+                    CodexMcpServer(
+                        name="context7",
+                        command="npx",
+                        args=[
+                            "-y",
+                            "@upstash/context7-mcp",
+                            "--api-key",
+                            "ctx7sk-93e85b8b-f1c1-47b9-886a-0be32c255f1f",
+                        ],
+                    )
+                ]
+            )
             chat = await client.create_chat(prompt, config=config)
             
             turn = 1
