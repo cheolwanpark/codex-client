@@ -1,6 +1,6 @@
 [project]
 name = "codex-client"
-version = "0.0.1"
+version = "0.0.2"
 description = "Claude Code SDK-style wrapper around the Codex CLI for programmatic automation."
 readme = "README.md"
 requires-python = ">=3.11"
