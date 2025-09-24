@@ -56,7 +56,7 @@ wheels = [
 ]
 
 [[package]]
-name = "codex-sdk"
+name = "codex-client"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
