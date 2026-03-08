@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from codex_harness_kit import ApprovalPolicy, Session
+from codex_harness_kit import ApprovalPolicy, Session, turn_options
 from tests.helpers.mock_transport import MockTransport
 
 
@@ -60,6 +60,43 @@ async def test_thread_wrappers_are_reused_for_same_thread_id() -> None:
 
         assert resumed is thread
         assert thread.name == "Renamed"
+    finally:
+        await session.close()
+
+
+async def test_start_ephemeral_thread_sets_ephemeral_true() -> None:
+    transport = MockTransport()
+    session = await create_session(transport)
+
+    try:
+        start_task = asyncio.create_task(
+            session.start_ephemeral_thread({"ephemeral": False, "cwd": "/tmp/project"})
+        )
+        sent = await transport.next_sent()
+        assert sent["method"] == "thread/start"
+        assert sent["params"] == {"ephemeral": True, "cwd": "/tmp/project"}
+        await transport.inject({"id": sent["id"], "result": {"thread": make_thread("thr_1")}})
+        thread = await start_task
+
+        assert thread.id == "thr_1"
+    finally:
+        await session.close()
+
+
+async def test_start_ephemeral_thread_sends_default_ephemeral_payload() -> None:
+    transport = MockTransport()
+    session = await create_session(transport)
+
+    try:
+        task = asyncio.create_task(session.start_ephemeral_thread())
+        sent = await transport.next_sent()
+
+        assert sent["method"] == "thread/start"
+        assert sent["params"] == {"ephemeral": True}
+
+        await transport.inject({"id": sent["id"], "result": {"thread": make_thread("thr_1")}})
+        thread = await task
+        assert thread.id == "thr_1"
     finally:
         await session.close()
 
@@ -168,6 +205,30 @@ async def test_turn_stream_buffers_events_updates_state_and_returns_text() -> No
         ]
         assert turn.items == [{"id": "item_1", "type": "agentMessage", "text": "Hello"}]
         assert await turn.text() == "Hello"
+    finally:
+        await session.close()
+
+
+async def test_start_turn_accepts_turn_options_helper_payload() -> None:
+    transport = MockTransport()
+    session = await create_session(transport)
+
+    try:
+        thread = await start_thread(session, transport)
+        turn_task = asyncio.create_task(
+            thread.start_turn("Reply with hello", turn_options(model="gpt-5.1-codex", effort="medium"))
+        )
+        sent = await transport.next_sent()
+
+        assert sent["method"] == "turn/start"
+        assert sent["params"]["threadId"] == thread.id
+        assert sent["params"]["input"] == [{"type": "text", "text": "Reply with hello"}]
+        assert sent["params"]["model"] == "gpt-5.1-codex"
+        assert sent["params"]["effort"] == "medium"
+
+        await transport.inject({"id": sent["id"], "result": {"turn": make_turn("turn_1")}})
+        turn = await turn_task
+        assert turn.id == "turn_1"
     finally:
         await session.close()
 

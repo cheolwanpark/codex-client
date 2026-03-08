@@ -1,3 +1,5 @@
+from . import protocol_types
+from .constants import NotificationMethod, ServerRequestMethod, TurnEventType
 from .codec import JsonRpcCodec
 from .client import Middleware, MiddlewareContext, TypedCodexClient
 from .connection import ProtocolConnection
@@ -11,6 +13,20 @@ from .errors import (
     TransportClosedError,
     UnknownResponseIdError,
 )
+from .helpers import (
+    approve_command,
+    approve_file_change,
+    approve_file_change_for_session,
+    client_info,
+    decline_command,
+    decline_file_change,
+    text_input,
+    thread_params,
+    tool_answers,
+    tool_call_failure,
+    tool_call_success,
+    turn_options,
+)
 from .messages import (
     JSONValue,
     JsonRpcErrorObject,
@@ -22,12 +38,13 @@ from .messages import (
     RequestId,
     W3cTraceContext,
 )
-from .runtime import ApprovalPolicy, Session, Thread, Turn, TurnEvent
+from .runtime import ApprovalPolicy, Session, Thread, Turn, TurnEvent, TurnOptions
 from .transport import StdioTransport, Transport
 
 __all__ = [
     "ApprovalPolicy",
     "ClientClosedError",
+    "NotificationMethod",
     "JSONValue",
     "JsonRpcCodec",
     "JsonRpcCodecError",
@@ -45,14 +62,30 @@ __all__ = [
     "ProtocolStreamError",
     "RequestId",
     "RequestTimeoutError",
+    "ServerRequestMethod",
     "Session",
     "StdioTransport",
     "Thread",
-    "Turn",
-    "TurnEvent",
-    "TypedCodexClient",
     "Transport",
     "TransportClosedError",
+    "Turn",
+    "TurnEvent",
+    "TurnEventType",
+    "TurnOptions",
+    "TypedCodexClient",
     "UnknownResponseIdError",
     "W3cTraceContext",
+    "approve_command",
+    "approve_file_change",
+    "approve_file_change_for_session",
+    "client_info",
+    "decline_command",
+    "decline_file_change",
+    "protocol_types",
+    "text_input",
+    "thread_params",
+    "tool_answers",
+    "tool_call_failure",
+    "tool_call_success",
+    "turn_options",
 ]

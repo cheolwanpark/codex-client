@@ -12,7 +12,7 @@ async def run_session(label: str, prompt: str) -> tuple[str, str, str]:
         client_info=CLIENT_INFO,
         approval_policy=ApprovalPolicy.auto_accept(),
     ) as session:
-        thread = await session.start_thread({"ephemeral": True})
+        thread = await session.start_ephemeral_thread()
         answer = await thread.ask(prompt)
         return label, thread.id, answer.strip()
 

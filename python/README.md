@@ -33,6 +33,8 @@ This package gives you progressively higher-level entry points so you can stop a
 - **Typed Protocol Client**: `TypedCodexClient` with generated methods for the Codex app-server request surface.
 - **Session Runtime**: `Session`, `Thread`, `Turn`, and `ApprovalPolicy` for the common host workflow.
 - **Generated Protocol Types**: request, response, notification, and item types derived from the checked-in schemas.
+- **Usability Helpers**: `client_info(...)`, `thread_params(...)`, `turn_options(...)`, `text_input(...)`, and approval helper functions.
+- **Public Constants**: `NotificationMethod`, `ServerRequestMethod`, and `TurnEventType` for the most common string-based APIs.
 - **Host-Controlled Approvals**: accept, decline, or customize command/file/tool approval handling in Python.
 - **Examples and Integration Tests**: runnable scripts and tests that exercise a real local `codex app-server`.
 
@@ -43,15 +45,15 @@ from __future__ import annotations
 
 import asyncio
 
-from codex_harness_kit import ApprovalPolicy, Session
+from codex_harness_kit import ApprovalPolicy, Session, client_info
 
 
 async def main() -> None:
     async with await Session.create(
-        client_info={"name": "my-app", "version": "0.1.0"},
+        client_info=client_info("my-app", "0.1.0"),
         approval_policy=ApprovalPolicy.auto_accept(),
     ) as session:
-        thread = await session.start_thread({"ephemeral": True})
+        thread = await session.start_ephemeral_thread()
         answer = await thread.ask("Reply with exactly OK.")
         print(answer.strip())
 
@@ -99,15 +101,15 @@ from __future__ import annotations
 
 import asyncio
 
-from codex_harness_kit import ApprovalPolicy, Session
+from codex_harness_kit import ApprovalPolicy, Session, client_info
 
 
 async def main() -> None:
     async with await Session.create(
-        client_info={"name": "my-app", "version": "0.1.0"},
+        client_info=client_info("my-app", "0.1.0"),
         approval_policy=ApprovalPolicy.auto_accept(),
     ) as session:
-        thread = await session.start_thread({"ephemeral": True})
+        thread = await session.start_ephemeral_thread()
         answer = await thread.ask("Summarize this repository in one sentence.")
         print(answer.strip())
 
@@ -125,25 +127,25 @@ from __future__ import annotations
 
 import asyncio
 
-from codex_harness_kit import ApprovalPolicy, Session
+from codex_harness_kit import ApprovalPolicy, Session, TurnEventType, client_info
 
 
 async def main() -> None:
     async with await Session.create(
-        client_info={"name": "my-app", "version": "0.1.0"},
+        client_info=client_info("my-app", "0.1.0"),
         approval_policy=ApprovalPolicy.auto_accept(),
     ) as session:
-        thread = await session.start_thread({"ephemeral": True})
+        thread = await session.start_ephemeral_thread()
         turn = await thread.start_turn("Explain this SDK in one paragraph.")
 
         async for event in turn:
-            if event["type"] == "agent_message_delta":
+            if event["type"] == TurnEventType.AGENT_MESSAGE_DELTA:
                 print(event["delta"], end="", flush=True)
-            elif event["type"] == "plan_updated":
+            elif event["type"] == TurnEventType.PLAN_UPDATED:
                 print("\n[plan updated]")
                 for step in event["plan"]:
                     print(step["status"], step["step"])
-            elif event["type"] == "completed":
+            elif event["type"] == TurnEventType.COMPLETED:
                 print(f"\nstatus={event['turn']['status']}")
 
 
@@ -160,20 +162,20 @@ from __future__ import annotations
 
 import asyncio
 
-from codex_harness_kit import ApprovalPolicy, Session
+from codex_harness_kit import ApprovalPolicy, Session, client_info, thread_params
 
 
 async def main() -> None:
     async with await Session.create(
-        client_info={"name": "my-app", "version": "0.1.0"},
+        client_info=client_info("my-app", "0.1.0"),
         approval_policy=ApprovalPolicy.auto_accept(),
     ) as first_session:
-        thread = await first_session.start_thread({"ephemeral": False})
+        thread = await first_session.start_thread(thread_params(ephemeral=False))
         await thread.ask("Reply with exactly FIRST.")
         thread_id = thread.id
 
     async with await Session.create(
-        client_info={"name": "my-app", "version": "0.1.0"},
+        client_info=client_info("my-app", "0.1.0"),
         approval_policy=ApprovalPolicy.auto_accept(),
     ) as second_session:
         thread = await second_session.resume_thread(thread_id)
@@ -193,15 +195,15 @@ Each `Session` owns its own app-server connection and thread lifecycle.
 ```python
 import asyncio
 
-from codex_harness_kit import ApprovalPolicy, Session
+from codex_harness_kit import ApprovalPolicy, Session, client_info
 
 
 async def run_once(prompt: str) -> str:
     async with await Session.create(
-        client_info={"name": "my-app", "version": "0.1.0"},
+        client_info=client_info("my-app", "0.1.0"),
         approval_policy=ApprovalPolicy.auto_accept(),
     ) as session:
-        thread = await session.start_thread({"ephemeral": True})
+        thread = await session.start_ephemeral_thread()
         return (await thread.ask(prompt)).strip()
 
 
@@ -225,24 +227,29 @@ The runtime is fail-closed by default. If you do not provide an approval hook, t
 from __future__ import annotations
 
 import asyncio
-from typing import Any
 
-from codex_harness_kit import ApprovalPolicy, Session
+from codex_harness_kit import ApprovalPolicy, Session, approve_command, client_info
+from codex_harness_kit.protocol_types import (
+    CommandExecutionRequestApprovalParams,
+    CommandExecutionRequestApprovalResponse,
+)
 
 
-async def on_command_execution(params: dict[str, Any]) -> dict[str, str]:
+async def on_command_execution(
+    params: CommandExecutionRequestApprovalParams,
+) -> CommandExecutionRequestApprovalResponse:
     print(f"command approval requested for {params['itemId']}")
-    return {"decision": "accept"}
+    return approve_command()
 
 
 async def main() -> None:
     policy = ApprovalPolicy.custom(on_command_execution=on_command_execution)
 
     async with await Session.create(
-        client_info={"name": "my-app", "version": "0.1.0"},
+        client_info=client_info("my-app", "0.1.0"),
         approval_policy=policy,
     ) as session:
-        thread = await session.start_thread({"ephemeral": True})
+        thread = await session.start_ephemeral_thread()
         print((await thread.ask("Reply with exactly OK.")).strip())
 
 
@@ -257,6 +264,8 @@ Built-in policies:
 - `ApprovalPolicy.commands_only()`
 - `ApprovalPolicy.custom(...)`
 
+Raw dict responses still work when you need full protocol control, but the helper functions keep the common approval shapes readable.
+
 ### Use The Low-Level Typed Client Directly
 
 Drop to `TypedCodexClient` when you want direct request/notification control without the runtime wrapper.
@@ -264,27 +273,26 @@ Drop to `TypedCodexClient` when you want direct request/notification control wit
 ```python
 from __future__ import annotations
 
-import asyncio
-
-from codex_harness_kit import StdioTransport, TypedCodexClient
+from codex_harness_kit import (
+    NotificationMethod,
+    StdioTransport,
+    TypedCodexClient,
+    client_info,
+    text_input,
+)
 
 
 async def main() -> None:
     client = TypedCodexClient.from_transport(StdioTransport())
-    completed: asyncio.Future[dict[str, object]] = asyncio.get_running_loop().create_future()
     chunks: list[str] = []
 
     client.on_notification(
-        "item/agentMessage/delta",
+        NotificationMethod.ITEM_AGENT_MESSAGE_DELTA,
         lambda params: chunks.append(params["delta"]),
-    )
-    client.on_notification(
-        "turn/completed",
-        lambda params: completed.set_result(params) if not completed.done() else None,
     )
 
     try:
-        await client.initialize({"clientInfo": {"name": "my-app", "version": "0.1.0"}})
+        await client.initialize({"clientInfo": client_info("my-app", "0.1.0")})
         await client.send_initialized()
 
         thread = await client.thread_start({"ephemeral": True})
@@ -293,11 +301,14 @@ async def main() -> None:
         await client.turn_start(
             {
                 "threadId": thread_id,
-                "input": [{"type": "text", "text": "Reply with exactly OK."}],
+                "input": [text_input("Reply with exactly OK.")],
             }
         )
 
-        result = await asyncio.wait_for(completed, timeout=60.0)
+        result = await client.wait_for_notification(
+            NotificationMethod.TURN_COMPLETED,
+            timeout=60.0,
+        )
         print(result["turn"]["status"])
         print("".join(chunks).strip())
     finally:
@@ -315,7 +326,7 @@ if __name__ == "__main__":
 Use this when you want an application-facing object model:
 
 - `Session.create(...)`
-- `session.start_thread(...)` / `session.resume_thread(...)`
+- `session.start_ephemeral_thread(...)`, `session.start_thread(...)`, or `session.resume_thread(...)`
 - `thread.ask(...)` or `thread.start_turn(...)`
 - `ApprovalPolicy` hooks for approvals and user input
 
@@ -326,6 +337,7 @@ This is the default starting point for most hosts.
 Use this when you want typed method calls but still want to manage routing yourself:
 
 - register notification handlers with `on_notification(...)`
+- wait on a single notification with `wait_for_notification(...)`
 - register server request handlers with `on_server_request(...)`
 - call generated methods such as `thread_start(...)` and `turn_start(...)`
 
@@ -404,6 +416,7 @@ Integration tests expect a real local `codex` CLI installation and authenticated
 ## Notes and Constraints
 
 - `Session.create(...)` defaults to spawning `codex app-server` over stdio via `StdioTransport`.
+- The helper functions and enums are optional convenience layers; raw dict-based protocol access still works.
 - Passing a custom `transport` and custom stdio launch options at the same time is rejected.
 - The runtime defaults to `ApprovalPolicy.auto_decline()` unless you opt into another policy.
 - `Turn` objects are async iterables for streaming consumption, and iteration is single-use.

@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import asyncio
 
-from codex_harness_kit import StdioTransport, TypedCodexClient
+from codex_harness_kit import (
+    NotificationMethod,
+    StdioTransport,
+    TypedCodexClient,
+    text_input,
+)
 
 from _common import CLIENT_INFO, print_section, require_codex_cli
 
@@ -12,16 +17,11 @@ async def main() -> None:
     print_section("Low-Level Typed Client")
 
     client = TypedCodexClient.from_transport(StdioTransport())
-    completed: asyncio.Future[dict[str, object]] = asyncio.get_running_loop().create_future()
     deltas: list[str] = []
 
     client.on_notification(
-        "item/agentMessage/delta",
+        NotificationMethod.ITEM_AGENT_MESSAGE_DELTA,
         lambda params: deltas.append(params["delta"]) or print(params["delta"], end="", flush=True),
-    )
-    client.on_notification(
-        "turn/completed",
-        lambda params: completed.set_result(params) if not completed.done() else None,
     )
 
     try:
@@ -37,14 +37,17 @@ async def main() -> None:
         turn_response = await client.turn_start(
             {
                 "threadId": thread_id,
-                "input": [{"type": "text", "text": prompt}],
+                "input": [text_input(prompt)],
             }
         )
         print(f"Turn: {turn_response['turn']['id']}")
         print(f"Initial turn status: {turn_response['turn']['status']}")
         print("\nAgent stream:")
 
-        turn_completed = await asyncio.wait_for(completed, timeout=60.0)
+        turn_completed = await client.wait_for_notification(
+            NotificationMethod.TURN_COMPLETED,
+            timeout=60.0,
+        )
         print("\n")
         print(f"Completion status: {turn_completed['turn']['status']}")
         print(f"Buffered text: {''.join(deltas).strip()}")

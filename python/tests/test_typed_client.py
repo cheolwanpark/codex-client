@@ -6,6 +6,8 @@ import re
 import pytest
 
 from codex_harness_kit import (
+    NotificationMethod,
+    ServerRequestMethod,
     JsonRpcCodec,
     MiddlewareAbortedError,
     ProtocolConnection,
@@ -72,7 +74,7 @@ async def test_server_request_handler_returns_result() -> None:
     transport = MockTransport()
     client = TypedCodexClient(ProtocolConnection(transport))
     client.on_server_request(
-        "item/commandExecution/requestApproval",
+        ServerRequestMethod.ITEM_COMMAND_EXECUTION_REQUEST_APPROVAL,
         lambda params: {"decision": "accept", "itemId": params["itemId"]},
     )
 
@@ -115,8 +117,14 @@ async def test_notification_handlers_fire_in_registration_order() -> None:
     transport = MockTransport()
     client = TypedCodexClient(ProtocolConnection(transport))
     calls: list[str] = []
-    client.on_notification("thread/started", lambda params: calls.append(f"one:{params['thread']['id']}"))
-    client.on_notification("thread/started", lambda params: calls.append(f"two:{params['thread']['id']}"))
+    client.on_notification(
+        NotificationMethod.THREAD_STARTED,
+        lambda params: calls.append(f"one:{params['thread']['id']}"),
+    )
+    client.on_notification(
+        NotificationMethod.THREAD_STARTED,
+        lambda params: calls.append(f"two:{params['thread']['id']}"),
+    )
 
     try:
         await transport.inject(
@@ -147,7 +155,7 @@ async def test_middleware_runs_in_deterministic_order_for_outgoing_and_incoming(
         events.append(f"after:second:{ctx.direction}:{ctx.method}")
 
     client.use(first).use(second)
-    client.on_notification("thread/started", lambda params: events.append("notification"))
+    client.on_notification(NotificationMethod.THREAD_STARTED, lambda params: events.append("notification"))
 
     try:
         request_task = asyncio.create_task(
@@ -214,6 +222,82 @@ async def test_request_timeout_ignores_late_response() -> None:
         sent = await transport.next_sent()
         await transport.inject({"id": sent["id"], "result": {"ok": True}})
         assert await follow_up == {"ok": True}
+    finally:
+        await client.close()
+
+
+async def test_notification_unsubscribe_stops_future_callbacks() -> None:
+    transport = MockTransport()
+    client = TypedCodexClient(ProtocolConnection(transport))
+    calls: list[str] = []
+    unsubscribe = client.on_notification(
+        NotificationMethod.THREAD_STARTED,
+        lambda params: calls.append(params["thread"]["id"]),
+    )
+
+    try:
+        unsubscribe()
+        await transport.inject({"method": "thread/started", "params": {"thread": {"id": "thr_1"}}})
+        await asyncio.sleep(0)
+        assert calls == []
+    finally:
+        await client.close()
+
+
+async def test_server_request_unsubscribe_removes_matching_handler() -> None:
+    transport = MockTransport()
+    client = TypedCodexClient(ProtocolConnection(transport))
+    unsubscribe = client.on_server_request(
+        ServerRequestMethod.ITEM_COMMAND_EXECUTION_REQUEST_APPROVAL,
+        lambda params: {"decision": "accept", "itemId": params["itemId"]},
+    )
+
+    try:
+        unsubscribe()
+        await transport.inject(
+            {
+                "id": 5,
+                "method": "item/commandExecution/requestApproval",
+                "params": {"itemId": "item_1"},
+            }
+        )
+
+        sent = await transport.next_sent()
+        assert sent["error"]["code"] == -32601
+    finally:
+        await client.close()
+
+
+async def test_wait_for_notification_returns_first_matching_payload() -> None:
+    transport = MockTransport()
+    client = TypedCodexClient(ProtocolConnection(transport))
+
+    try:
+        waiter = asyncio.create_task(
+            client.wait_for_notification(
+                NotificationMethod.THREAD_STARTED,
+                predicate=lambda params: params["thread"]["id"] == "thr_2",
+                timeout=1.0,
+            )
+        )
+        await asyncio.sleep(0)
+        await transport.inject({"method": "thread/started", "params": {"thread": {"id": "thr_1"}}})
+        await transport.inject({"method": "thread/started", "params": {"thread": {"id": "thr_2"}}})
+
+        assert await waiter == {"thread": {"id": "thr_2"}}
+    finally:
+        await client.close()
+
+
+async def test_wait_for_notification_times_out_and_cleans_up_handler() -> None:
+    transport = MockTransport()
+    client = TypedCodexClient(ProtocolConnection(transport))
+
+    try:
+        with pytest.raises(RequestTimeoutError, match='Notification "thread/started" timed out'):
+            await client.wait_for_notification(NotificationMethod.THREAD_STARTED, timeout=0.01)
+
+        assert client._notification_handlers[NotificationMethod.THREAD_STARTED] == []
     finally:
         await client.close()
 

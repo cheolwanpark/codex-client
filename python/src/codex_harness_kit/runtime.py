@@ -103,6 +103,18 @@ class CompletedEvent(TypedDict):
     turn: generated.Turn
 
 
+class TurnOptions(TypedDict, total=False):
+    approvalPolicy: generated.AskForApproval | None
+    cwd: str | None
+    effort: generated.ReasoningEffort | None
+    model: str | None
+    outputSchema: JSONValue
+    personality: generated.Personality | None
+    sandboxPolicy: generated.SandboxPolicy | None
+    serviceTier: generated.ServiceTier | None
+    summary: generated.ReasoningSummary | None
+
+
 TurnEvent: TypeAlias = (
     ItemStartedEvent
     | ItemCompletedEvent
@@ -278,6 +290,13 @@ class Session:
     ) -> "Thread":
         response = await self._client.thread_start(params)
         return self._hydrate_thread(response["thread"], response)
+
+    async def start_ephemeral_thread(
+        self, params: generated.ThreadStartParams | None = None
+    ) -> "Thread":
+        payload = dict(params or {})
+        payload["ephemeral"] = True
+        return await self.start_thread(payload)
 
     async def resume_thread(
         self,
@@ -457,7 +476,7 @@ class Thread:
     async def start_turn(
         self,
         input: str | list[generated.UserInput],
-        options: generated.TurnStartParams | None = None,
+        options: TurnOptions | None = None,
     ) -> "Turn":
         payload = dict(options or {})
         payload["threadId"] = self.id
@@ -470,7 +489,7 @@ class Thread:
     async def ask(
         self,
         input: str | list[generated.UserInput],
-        options: generated.TurnStartParams | None = None,
+        options: TurnOptions | None = None,
     ) -> str:
         turn = await self.start_turn(input, options)
         return await turn.text()

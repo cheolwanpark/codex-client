@@ -1,35 +1,55 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
 
-from codex_harness_kit import ApprovalPolicy, Session
+from codex_harness_kit import (
+    ApprovalPolicy,
+    Session,
+    approve_command,
+    approve_file_change_for_session,
+    tool_answers,
+    tool_call_failure,
+)
+from codex_harness_kit.protocol_types import (
+    CommandExecutionRequestApprovalParams,
+    CommandExecutionRequestApprovalResponse,
+    DynamicToolCallParams,
+    DynamicToolCallResponse,
+    FileChangeRequestApprovalParams,
+    FileChangeRequestApprovalResponse,
+    ToolRequestUserInputParams,
+    ToolRequestUserInputResponse,
+)
 
 from _common import CLIENT_INFO, print_section, require_codex_cli
 
 
-async def on_command_execution(params: dict[str, Any]) -> dict[str, str]:
+async def on_command_execution(
+    params: CommandExecutionRequestApprovalParams,
+) -> CommandExecutionRequestApprovalResponse:
     print(f"command approval requested for item={params['itemId']}")
-    return {"decision": "accept"}
+    return approve_command()
 
 
-async def on_file_change(params: dict[str, Any]) -> dict[str, str]:
+async def on_file_change(
+    params: FileChangeRequestApprovalParams,
+) -> FileChangeRequestApprovalResponse:
     print(f"file change approval requested for item={params['itemId']}")
-    return {"decision": "decline"}
+    return approve_file_change_for_session()
 
 
-async def on_tool_request_user_input(params: dict[str, Any]) -> dict[str, Any]:
+async def on_tool_request_user_input(
+    params: ToolRequestUserInputParams,
+) -> ToolRequestUserInputResponse:
     print(f"tool user input requested for item={params['itemId']}")
-    answers = {
-        question["id"]: {"answers": ["approved by host"]}
-        for question in params["questions"]
-    }
-    return {"answers": answers}
+    return tool_answers(
+        {question["id"]: ["approved by host"] for question in params["questions"]}
+    )
 
 
-async def on_dynamic_tool_call(params: dict[str, Any]) -> dict[str, Any]:
+async def on_dynamic_tool_call(params: DynamicToolCallParams) -> DynamicToolCallResponse:
     print(f"dynamic tool call requested for call={params['callId']}")
-    return {"success": False, "contentItems": []}
+    return tool_call_failure()
 
 
 async def show_sample_hook_results(policy: ApprovalPolicy) -> None:
@@ -95,7 +115,7 @@ async def main() -> None:
         client_info=CLIENT_INFO,
         approval_policy=policy,
     ) as session:
-        thread = await session.start_thread({"ephemeral": True})
+        thread = await session.start_ephemeral_thread()
         answer = await thread.ask("Reply with exactly OK.")
         print(f"Thread: {thread.id}")
         print(f"Answer: {answer.strip()}")

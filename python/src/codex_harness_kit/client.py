@@ -38,6 +38,7 @@ MiddlewareNext: TypeAlias = Callable[[], Awaitable[None]]
 Middleware: TypeAlias = Callable[[MiddlewareContext, MiddlewareNext], Awaitable[None]]
 ServerRequestHandler: TypeAlias = Callable[[JSONValue], Awaitable[JSONValue] | JSONValue]
 NotificationHandler: TypeAlias = Callable[[JSONValue], Awaitable[None] | None]
+NotificationPredicate: TypeAlias = Callable[[JSONValue], bool]
 
 
 class TypedCodexClient(GeneratedClientMixin):
@@ -63,15 +64,27 @@ class TypedCodexClient(GeneratedClientMixin):
 
     def on_server_request(
         self, method: str, handler: ServerRequestHandler
-    ) -> "TypedCodexClient":
+    ) -> Callable[[], None]:
         self._server_request_handlers[method] = handler
-        return self
+
+        def unsubscribe() -> None:
+            current = self._server_request_handlers.get(method)
+            if current is handler:
+                self._server_request_handlers.pop(method, None)
+
+        return unsubscribe
 
     def on_notification(
         self, method: str, handler: NotificationHandler
-    ) -> "TypedCodexClient":
-        self._notification_handlers[method].append(handler)
-        return self
+    ) -> Callable[[], None]:
+        handlers = self._notification_handlers[method]
+        handlers.append(handler)
+
+        def unsubscribe() -> None:
+            with contextlib.suppress(ValueError):
+                handlers.remove(handler)
+
+        return unsubscribe
 
     def off(self, method: str) -> "TypedCodexClient":
         self._server_request_handlers.pop(method, None)
@@ -123,6 +136,33 @@ class TypedCodexClient(GeneratedClientMixin):
 
     async def send_initialized(self) -> None:
         await self.notify("initialized")
+
+    async def wait_for_notification(
+        self,
+        method: str,
+        *,
+        predicate: NotificationPredicate | None = None,
+        timeout: float | None = None,
+    ) -> JSONValue:
+        self._ensure_open()
+
+        future: asyncio.Future[JSONValue] = asyncio.get_running_loop().create_future()
+
+        def handler(params: JSONValue) -> None:
+            if predicate is not None and not predicate(params):
+                return
+            if not future.done():
+                future.set_result(params)
+
+        unsubscribe = self.on_notification(method, handler)
+        try:
+            return await asyncio.wait_for(future, timeout=timeout)
+        except asyncio.TimeoutError as exc:
+            raise RequestTimeoutError(
+                f'Notification "{method}" timed out after {timeout} seconds'
+            ) from exc
+        finally:
+            unsubscribe()
 
     async def close(self) -> None:
         if self._closed:

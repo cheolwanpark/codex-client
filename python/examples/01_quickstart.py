@@ -15,7 +15,7 @@ async def main() -> None:
         client_info=CLIENT_INFO,
         approval_policy=ApprovalPolicy.auto_accept(),
     ) as session:
-        thread = await session.start_thread({"ephemeral": True})
+        thread = await session.start_ephemeral_thread()
         prompt = "Reply with exactly OK."
 
         print(f"Thread: {thread.id}")

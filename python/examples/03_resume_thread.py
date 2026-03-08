@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from codex_harness_kit import ApprovalPolicy, Session
+from codex_harness_kit import ApprovalPolicy, Session, thread_params
 
 from _common import CLIENT_INFO, print_section, require_codex_cli
 
@@ -15,7 +15,7 @@ async def main() -> None:
         client_info=CLIENT_INFO,
         approval_policy=ApprovalPolicy.auto_accept(),
     ) as first_session:
-        thread = await first_session.start_thread({"ephemeral": False})
+        thread = await first_session.start_thread(thread_params(ephemeral=False))
         first_answer = await thread.ask("Reply with exactly FIRST.")
         thread_id = thread.id
 

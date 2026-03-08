@@ -1,6 +1,6 @@
 # Python Examples
 
-These examples are organized by abstraction level. Start at the runtime layer, then move down only if you need more control.
+These examples are organized by abstraction level. Start at the runtime layer, then move down only if you need more control. The examples prefer the public helper functions, enums, and typed protocol imports over handwritten dicts and string literals.
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ uv run python examples/06_low_level_client.py
 The default path for most users.
 
 - create a `Session`
-- start an ephemeral thread
+- use `start_ephemeral_thread()` for the common case
 - send one prompt with `thread.ask(...)`
 
 ### `02_streaming_turn.py`
@@ -34,14 +34,14 @@ The default path for most users.
 The runtime streaming model.
 
 - start a turn explicitly
-- iterate over `Turn` events
+- iterate over `Turn` events with `TurnEventType`
 - inspect deltas, plan updates, and completion
 
 ### `03_resume_thread.py`
 
 Reconnect to a persistent thread from a fresh host session.
 
-- start a non-ephemeral thread
+- start a non-ephemeral thread with `thread_params(ephemeral=False)`
 - close the first session
 - `resume_thread(...)` from a new session
 - continue the conversation on the same thread
@@ -59,7 +59,8 @@ Run multiple independent host sessions at the same time.
 Host-controlled approvals.
 
 - build an `ApprovalPolicy.custom(...)`
-- inspect the return shape for each host hook
+- use typed hook params from `codex_harness_kit.protocol_types`
+- use approval helper functions for common responses
 - attach the policy to a real session
 
 ### `06_low_level_client.py`
@@ -68,5 +69,6 @@ Typed protocol access without the runtime wrapper.
 
 - use `TypedCodexClient.from_transport(...)`
 - call `initialize(...)` and `send_initialized()`
-- register notification handlers directly
+- register notification handlers with `NotificationMethod`
+- await completion with `wait_for_notification(...)`
 - start threads and turns with typed client methods
