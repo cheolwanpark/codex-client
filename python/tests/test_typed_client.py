@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import re
-from collections.abc import AsyncIterator
 
 import pytest
 
@@ -15,54 +14,14 @@ from codex_harness_kit import (
     UnknownResponseIdError,
 )
 from codex_harness_kit._generated import CLIENT_REQUEST_METHODS, CLIENT_REQUEST_METHOD_TO_PARAMS
+from tests.helpers.mock_transport import MockTransport
 
-_QUEUE_EOF = object()
 _NULL_PARAM_METHODS = {
     "account/logout",
     "account/rateLimits/read",
     "config/mcpServer/reload",
     "configRequirements/read",
 }
-
-
-class MockTransport:
-    def __init__(self) -> None:
-        self.sent_frames: list[str] = []
-        self.closed = False
-        self._queue: asyncio.Queue[object] = asyncio.Queue()
-
-    async def send(self, data: str) -> None:
-        self.sent_frames.append(data)
-
-    def __aiter__(self) -> AsyncIterator[str]:
-        return self._iterate()
-
-    async def close(self) -> None:
-        self.closed = True
-        await self._queue.put(_QUEUE_EOF)
-
-    async def inject(self, message: object) -> None:
-        if isinstance(message, str):
-            await self._queue.put(message)
-            return
-        await self._queue.put(JsonRpcCodec.encode(message))
-
-    async def fail(self, exc: BaseException) -> None:
-        await self._queue.put(exc)
-
-    async def next_sent(self) -> dict[str, object]:
-        while not self.sent_frames:
-            await asyncio.sleep(0)
-        return JsonRpcCodec.decode(self.sent_frames.pop(0))
-
-    async def _iterate(self) -> AsyncIterator[str]:
-        while True:
-            item = await self._queue.get()
-            if item is _QUEUE_EOF:
-                return
-            if isinstance(item, BaseException):
-                raise item
-            yield str(item)
 
 
 async def test_generated_wrappers_send_expected_methods_and_params() -> None:

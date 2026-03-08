@@ -22,9 +22,11 @@ from .messages import (
     RequestId,
     W3cTraceContext,
 )
+from .runtime import ApprovalPolicy, Session, Thread, Turn, TurnEvent
 from .transport import StdioTransport, Transport
 
 __all__ = [
+    "ApprovalPolicy",
     "ClientClosedError",
     "JSONValue",
     "JsonRpcCodec",
@@ -43,7 +45,11 @@ __all__ = [
     "ProtocolStreamError",
     "RequestId",
     "RequestTimeoutError",
+    "Session",
     "StdioTransport",
+    "Thread",
+    "Turn",
+    "TurnEvent",
     "TypedCodexClient",
     "Transport",
     "TransportClosedError",
