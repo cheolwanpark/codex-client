@@ -1,135 +1,68 @@
-# Codex Client
+# codex-harness-kit
 
-Lightweight Python wrapper for the Codex CLI. Stream chats, handle reasoning/tool events, and build custom MCP tools.
+Repo-first SDK work for the Codex app-server protocol.
 
-## Installation
+This repository currently contains a Python binding for the Codex app-server protocol plus the JSON schemas and design notes that define the protocol surface. The goal is to make it practical to embed Codex in your own host application without starting from raw JSON-RPC messages.
 
-```bash
-pip install codex-client
+## What Is Codex App-Server?
+
+`codex app-server` runs Codex as a local bidirectional JSON-RPC service. A host application connects to it, performs `initialize`, starts or resumes threads, starts turns, and then consumes streaming notifications for agent output, plans, tool calls, approvals, and completion.
+
+That app-server layer is the feature this repository is built around:
+
+- the protocol schemas in `schema/` describe the wire format
+- the Python package wraps the protocol at several abstraction levels
+- the examples and tests exercise real `codex app-server` flows
+
+## High-Level Architecture
+
+```text
+Your App
+  |
+  v
+codex-harness-kit/python
+  |
+  +-- Session Runtime
+  |     Session -> Thread -> Turn
+  |     ApprovalPolicy hooks
+  |
+  +-- Typed Protocol Client
+  |     TypedCodexClient
+  |     Generated request/response methods
+  |
+  +-- Protocol Core
+  |     StdioTransport
+  |     ProtocolConnection
+  |     JsonRpcCodec
+  |
+  v
+codex app-server
+  |
+  v
+Codex
 ```
 
-Requires `codex` executable on your PATH.
+Supporting artifacts in this repo:
 
-## Authentication (CLI)
+- `schema/` is the source of truth for the app-server API surface.
+- `python/scripts/generate_protocol_client.py` turns schema data into generated Python protocol types and client helpers.
+- `DESIGN.md` explains the protocol and the intended layering in more detail.
 
-```bash
-# Login via browser
-codex-client login
+## Repository Layout
 
-# Export credentials (copy to another machine)
-codex-client read
+- `python/` contains the Python package, examples, tests, and generation script.
+- `schema/` contains the Codex app-server JSON schemas used to drive typed bindings.
+- `DESIGN.md` documents the protocol lifecycle, object model, and SDK architecture.
+- `claude-agent-toolkit/` is a separate sibling project used here as a documentation/style reference, not part of the Python package itself.
 
-# Import credentials
-codex-client set "<payload>"
+## README Map
 
-# Clear credentials
-codex-client logout
-```
+- [`python/README.md`](python/README.md): primary SDK documentation, setup, quickstarts, examples, and development commands
 
-## Basic Usage
+Python is the only language binding in this repository today. Add new language READMEs to this section as they land.
 
-```python
-import asyncio
-from codex_client import (
-    AssistantMessageStream,
-    Client,
-    CodexChatConfig,
-    CodexProfile,
-    ReasoningEffort,
-    SandboxMode,
-)
+## Getting Started
 
-async def main():
-    config = CodexChatConfig(
-        profile=CodexProfile(
-            model="gpt-5",
-            reasoning_effort=ReasoningEffort.MINIMAL,
-            sandbox=SandboxMode.WORKSPACE_WRITE,
-        )
-    )
+If you want to use the SDK, start with [`python/README.md`](python/README.md).
 
-    async with Client() as client:
-        chat = await client.create_chat("Write a Python fibonacci function", config=config)
-
-        # Stream responses
-        async for event in chat:
-            if isinstance(event, AssistantMessageStream):
-                async for chunk in event.stream():
-                    print(chunk, end="", flush=True)
-
-        # Get final response
-        final = await chat.get()
-        print(f"\n\nFinal: {final}")
-
-        # Continue conversation
-        await chat.resume("Now make it recursive")
-
-asyncio.run(main())
-```
-
-## Custom Tools
-
-```python
-from codex_client import BaseTool, tool
-
-class CalculatorTool(BaseTool):
-    @tool()
-    async def add(self, a: float, b: float) -> dict:
-        """Add two numbers."""
-        return {"result": a + b}
-
-    @tool()
-    async def multiply(self, a: float, b: float) -> dict:
-        """Multiply two numbers."""
-        return {"result": a * b}
-
-# Use the tool
-async def main():
-    with CalculatorTool() as calc:
-        config = CodexChatConfig(
-            profile=CodexProfile(model="gpt-5"),
-            mcp_servers=[calc.config()]
-        )
-
-        async with Client() as client:
-            chat = await client.create_chat("What is 15 + 27?", config=config)
-            async for event in chat:
-                if isinstance(event, AssistantMessageStream):
-                    async for chunk in event.stream():
-                        print(chunk, end="", flush=True)
-
-asyncio.run(main())
-```
-
-## Authentication (Code)
-
-```python
-from codex_client.auth import CodexAuth
-
-auth = CodexAuth()
-
-# Trigger login flow (opens browser)
-session = auth.login()
-print(f"Visit: {session.url}")
-success = session.wait()  # Blocks until user completes login
-
-# Or import existing credentials
-auth.set("<payload-from-codex-client-read>")
-
-# Verify credentials
-token = auth.read()
-```
-
-## Examples
-
-See `src/examples/` for complete demos:
-
-- **Interactive Chat** - Multi-turn conversations with streaming
-- **MCP Transport** - HTTP and stdio MCP server connectivity
-- **Weather Assistant** - Custom tool with state management
-
-```bash
-cd src/examples
-uv sync
-uv run weather/main.py
-```
+If you want the protocol and architecture reference first, read [`DESIGN.md`](DESIGN.md).
