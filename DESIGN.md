@@ -22,9 +22,9 @@
 3. [SDK Architecture — Layered Design](#sdk-architecture--layered-design)
    - [Design Principles](#design-principles)
    - [Project Structure](#project-structure)
-   - [Layer 0 — Raw Protocol](#layer-0--raw-protocol)
-   - [Layer 1 — Typed Client](#layer-1--typed-client)
-   - [Layer 2 — Session Model](#layer-2--session-model)
+   - [Protocol Core](#protocol-core)
+   - [Typed Protocol Client](#typed-protocol-client)
+   - [Session Runtime](#session-runtime)
    - [Type Generation](#type-generation)
    - [Transport Abstraction](#transport-abstraction)
    - [Middleware System](#middleware-system)
@@ -37,11 +37,11 @@
 
 Codex Harness Kit is a TypeScript SDK that wraps the OpenAI Codex app-server protocol — the JSON-RPC 2.0 bidirectional interface that powers rich Codex clients (e.g., the VS Code extension). The goal is to provide an easy-to-use, layered abstraction for embedding Codex into custom products, building test harnesses, and automating agent workflows.
 
-The SDK follows a three-layer architecture:
+The SDK follows a three-tier architecture:
 
-- **Layer 0** — Raw protocol connection (zero-opinion message pump)
-- **Layer 1** — Typed client with middleware support
-- **Layer 2** — High-level session/thread/turn object model
+- **Protocol Core** — Raw protocol connection and JSON-RPC message flow
+- **Typed Protocol Client** — Typed request/response surface with middleware and routing
+- **Session Runtime** — High-level session/thread/turn object model
 
 Users pick the abstraction level they need. Each layer is independently usable.
 
@@ -454,12 +454,12 @@ Turn failures emit an `error` notification followed by `turn/completed` with `st
 
 ### Design Principles
 
-1. **Pick your level** — Three layers (raw, typed, high-level), each independently usable.
-2. **Bottom-up composability** — Each layer builds on the one below. Layer 2 is implemented in terms of Layer 1, which is implemented in terms of Layer 0.
-3. **Middleware for cross-cutting concerns** — Logging, recording/replay, auto-approval, metrics, auth token refresh — all implemented as middleware at Layer 1.
+1. **Pick your level** — Three tiers (core, typed, runtime), each independently usable.
+2. **Bottom-up composability** — Session Runtime is implemented in terms of Typed Protocol Client, which is implemented in terms of Protocol Core.
+3. **Middleware for cross-cutting concerns** — Logging, recording/replay, auto-approval, metrics, auth token refresh — all implemented in Typed Protocol Client.
 4. **Type safety from schemas** — TypeScript types auto-generated from the 157 JSON schema files. All layers share the same types.
 5. **Testable without a server** — Mock transports, recording middleware, and replay transports enable full testing without a running Codex process.
-6. **Minimal opinion at the bottom, maximum ergonomics at the top** — Layer 0 is zero-opinion. Layer 2 provides `thread.ask("fix the bug")` one-liners.
+6. **Minimal opinion at the bottom, maximum ergonomics at the top** — Protocol Core is zero-opinion. Session Runtime provides `thread.ask("fix the bug")` one-liners.
 
 ### Project Structure
 
@@ -484,19 +484,19 @@ codex-harness-kit/
 │   │   ├── WebSocketTransport.ts    # WebSocket text frames
 │   │   └── index.ts
 │   │
-│   ├── layer0-protocol/
+│   ├── protocol-core/
 │   │   ├── JsonRpcCodec.ts          # Parse/serialize JSON-RPC messages
 │   │   ├── ProtocolConnection.ts    # Raw bidirectional message pump
 │   │   └── index.ts
 │   │
-│   ├── layer1-typed/
+│   ├── protocol-client/
 │   │   ├── TypedCodexClient.ts      # Typed methods for all client requests
 │   │   ├── Middleware.ts            # Middleware interface & runner
 │   │   ├── RequestRouter.ts         # Routes incoming messages to handlers
 │   │   ├── IdGenerator.ts           # Request ID allocation
 │   │   └── index.ts
 │   │
-│   ├── layer2-session/
+│   ├── session-runtime/
 │   │   ├── Session.ts               # Top-level entry point
 │   │   ├── Thread.ts                # Thread object with methods
 │   │   ├── Turn.ts                  # Turn as AsyncIterable<TurnEvent>
@@ -526,7 +526,9 @@ codex-harness-kit/
 └── tsconfig.json
 ```
 
-### Layer 0 — Raw Protocol
+### Protocol Core
+
+Formerly "Layer 0". This tier owns byte/string transport boundaries, JSON-RPC framing, and raw message flow. It should stay small and unsurprising.
 
 Zero-opinion bidirectional message pump. Parse JSONL, send/receive raw JSON-RPC objects.
 
@@ -588,7 +590,31 @@ for await (const msg of conn.incoming) {
 
 **Use cases:** Debugging, protocol sniffing, building completely custom clients, wrapping in other languages via FFI.
 
-### Layer 1 — Typed Client
+#### DO
+
+- Keep the surface close to the wire format and protocol rules.
+- Preserve message ordering and raw payload fidelity.
+- Fail fast on malformed JSON-RPC frames and transport-level corruption.
+- Expose primitives that higher tiers can compose without hidden state.
+
+#### DON'T
+
+- Don't add business workflow helpers here.
+- Don't interpret protocol events into user-facing domain objects.
+- Don't bake in approval policy, retries, or middleware concerns.
+- Don't silently "fix" invalid server messages; surface them as errors.
+
+#### Test Requirements
+
+- Verify codec round-trips for request, response, and notification shapes.
+- Verify omitted `jsonrpc` fields are accepted and emitted exactly as designed.
+- Verify malformed frames fail deterministically with actionable errors.
+- Verify transport close/error propagation reaches consumers without hangs.
+- Verify message ordering is preserved under streaming input.
+
+### Typed Protocol Client
+
+Formerly "Layer 1". This tier owns typed request methods, request/response correlation, middleware, and dispatch for server requests and notifications.
 
 Wraps `ProtocolConnection` with:
 - Typed methods for every client request (auto-generated from schemas)
@@ -711,7 +737,31 @@ const { turn } = await client.turnStart({
 
 **Use cases:** Building custom Codex frontends, integrating into existing applications, test harnesses that need fine-grained control.
 
-### Layer 2 — Session Model
+#### DO
+
+- Keep every protocol method represented as a typed API with schema-derived params/results.
+- Centralize request ID allocation, pending request tracking, and handler dispatch here.
+- Use middleware only for cross-cutting mechanics that apply across methods.
+- Treat server requests and notifications as first-class typed events.
+
+#### DON'T
+
+- Don't collapse multiple protocol steps into high-level convenience workflows.
+- Don't let middleware mutate message semantics in ways the caller cannot reason about.
+- Don't leak raw transport details into the public typed API.
+- Don't duplicate stateful thread/turn modeling that belongs in Session Runtime.
+
+#### Test Requirements
+
+- Verify every generated client request method sends the expected method name and params.
+- Verify responses resolve the matching pending promise by request ID, including out-of-order responses.
+- Verify server request handlers return correctly typed responses and notification handlers fire exactly once.
+- Verify middleware ordering is deterministic for incoming and outgoing messages.
+- Verify timeouts, unknown methods, and transport failures reject pending work cleanly.
+
+### Session Runtime
+
+Formerly "Layer 2". This tier owns ergonomic workflow objects and long-lived client state such as sessions, threads, turns, and approval policy integration.
 
 High-level object model with `Session`, `Thread`, `Turn`. Turns are `AsyncIterable<TurnEvent>` for streaming consumption. Approvals handled via injected `ApprovalPolicy`.
 
@@ -771,7 +821,7 @@ class Session {
     middleware?: Middleware[];
   }): Promise<Session>;
 
-  /** The underlying TypedCodexClient (Layer 1 escape hatch) */
+  /** The underlying TypedCodexClient (Typed Protocol Client escape hatch) */
   get client(): TypedCodexClient;
 
   /** Start a new thread */
@@ -972,7 +1022,7 @@ const session = await Session.create({
 });
 ```
 
-**Escaping to Layer 1 for advanced use**
+**Escaping to Typed Protocol Client for advanced use**
 
 ```ts
 const session = await Session.create({ /* ... */ });
@@ -985,6 +1035,28 @@ session.client.onNotification('account/rateLimits/updated', (params) => {
 // Use middleware
 session.client.use(recordingMiddleware('./recordings'));
 ```
+
+#### DO
+
+- Model the user-facing lifecycle in domain terms: session, thread, turn, review, approval policy.
+- Convert protocol notifications into stable, composable runtime events.
+- Keep escape hatches available when advanced callers need lower-level control.
+- Make the default path easy for common workflows like `ask`, streaming, and review.
+
+#### DON'T
+
+- Don't hide the underlying protocol so completely that debugging becomes impossible.
+- Don't invent convenience methods that skip protocol guarantees or lifecycle constraints.
+- Don't couple runtime objects to a single transport implementation.
+- Don't mix test-only helpers into the production runtime surface.
+
+#### Test Requirements
+
+- Verify `Session.create()` performs initialization correctly and closes cleanly.
+- Verify thread lifecycle methods call the expected typed client operations and update runtime state.
+- Verify turn streaming preserves event order and final completion semantics.
+- Verify approval policy hooks are invoked for the right server requests and their decisions are forwarded correctly.
+- Verify `ask()`, `text()`, and other convenience APIs match the underlying streamed turn result.
 
 ### Type Generation
 
@@ -1050,7 +1122,7 @@ class WebSocketTransport implements Transport {
 
 ### Middleware System
 
-Middleware intercepts messages at Layer 1 before they reach handlers. Inspired by Koa/Express middleware pattern.
+Middleware intercepts messages in Typed Protocol Client before they reach handlers. Inspired by Koa/Express middleware pattern.
 
 ```ts
 interface MiddlewareContext {
@@ -1101,6 +1173,8 @@ function autoApprovalMiddleware(options?: {
 ```
 
 ### Testing Infrastructure
+
+The testing stack should enforce the contract at each tier, not just happy-path examples.
 
 #### `MockTransport`
 
@@ -1185,6 +1259,14 @@ test('handles a simple turn', async () => {
 });
 ```
 
+#### Cross-Tier Test Requirements
+
+- Protocol Core must be covered primarily by small deterministic unit tests.
+- Typed Protocol Client must have dispatch and middleware tests that run entirely against `MockTransport`.
+- Session Runtime must have lifecycle tests that assert observable behavior rather than internal implementation details.
+- Replay fixtures must be versioned and used to lock down real protocol traces for regression coverage.
+- At least one end-to-end integration test must exercise a real `codex app-server` flow before release.
+
 ---
 
 ## Implementation Plan
@@ -1197,12 +1279,12 @@ Ordered bottom-up, each phase produces a usable, shippable artifact.
 2. **Type generation** (`scripts/generate-types.ts`) — Parse all 157 JSON schemas, resolve `$ref`, generate TypeScript types, discriminated unions, and method maps
 3. **Transport interface + StdioTransport** — Spawn `codex app-server` as child process, JSONL read/write
 
-### Phase 2: Layer 0
+### Phase 2: Protocol Core
 
 4. **JsonRpcCodec** — Parse/serialize JSON-RPC messages (handle omitted `jsonrpc` field)
 5. **ProtocolConnection** — Bidirectional async iterable message pump over any `Transport`
 
-### Phase 3: Layer 1
+### Phase 3: Typed Protocol Client
 
 6. **IdGenerator** — Auto-incrementing request ID allocation
 7. **RequestRouter** — Match incoming messages to pending requests and registered handlers
@@ -1215,7 +1297,7 @@ Ordered bottom-up, each phase produces a usable, shippable artifact.
 11. **recordingMiddleware** — Capture protocol sessions to disk
 12. **autoApprovalMiddleware** — Configurable auto-approval for commands and file changes
 
-### Phase 5: Layer 2
+### Phase 5: Session Runtime
 
 13. **ApprovalPolicy** — Interface + `autoAccept()`, `autoDecline()`, `custom()`
 14. **Session** — Create/close lifecycle, wraps `TypedCodexClient`

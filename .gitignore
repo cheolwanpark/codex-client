@@ -8,3 +8,8 @@ wheels/
 
 # Virtual environments
 .venv
+python/.venv/
+python/.pytest_cache/
+python/src/**/*.pyc
+python/tests/**/*.pyc
+python/**/__pycache__/
