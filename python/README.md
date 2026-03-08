@@ -39,6 +39,25 @@ async with await Session.create(
             print(event["delta"], end="")
 ```
 
+## Examples
+
+Runnable examples live in [`examples/README.md`](examples/README.md).
+
+Recommended order:
+
+- `01_quickstart.py`
+- `02_streaming_turn.py`
+- `03_resume_thread.py`
+- `04_multi_session.py`
+- `05_approval_policy.py`
+- `06_low_level_client.py`
+
+From the `python/` directory:
+
+```bash
+uv run python examples/01_quickstart.py
+```
+
 ## Development
 
 ```bash
