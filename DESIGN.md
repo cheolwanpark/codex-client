@@ -1,4 +1,4 @@
-# Codex Harness Kit — Design Document
+# Codex Client — Design Document
 
 ## Table of Contents
 
@@ -35,7 +35,7 @@
 
 ## Overview
 
-Codex Harness Kit is a TypeScript SDK that wraps the OpenAI Codex app-server protocol — the JSON-RPC 2.0 bidirectional interface that powers rich Codex clients (e.g., the VS Code extension). The goal is to provide an easy-to-use, layered abstraction for embedding Codex into custom products, building test harnesses, and automating agent workflows.
+Codex Client is a TypeScript SDK that wraps the OpenAI Codex app-server protocol — the JSON-RPC 2.0 bidirectional interface that powers rich Codex clients (e.g., the VS Code extension). The goal is to provide an easy-to-use, layered abstraction for embedding Codex into custom products, building test harnesses, and automating agent workflows.
 
 The SDK follows a three-tier architecture:
 
@@ -464,7 +464,7 @@ Turn failures emit an `error` notification followed by `turn/completed` with `st
 ### Project Structure
 
 ```
-codex-harness-kit/
+codex-client/
 ├── schema/                          # JSON schema files (existing)
 │   ├── v1/
 │   ├── v2/
@@ -570,7 +570,7 @@ class ProtocolConnection {
 #### Usage
 
 ```ts
-import { ProtocolConnection, StdioTransport } from 'codex-harness-kit';
+import { ProtocolConnection, StdioTransport } from 'codex-client';
 
 const conn = new ProtocolConnection(
   new StdioTransport({ command: 'codex', args: ['app-server'] })
@@ -686,7 +686,7 @@ class TypedCodexClient {
 #### Usage
 
 ```ts
-import { TypedCodexClient, StdioTransport, loggingMiddleware } from 'codex-harness-kit';
+import { TypedCodexClient, StdioTransport, loggingMiddleware } from 'codex-client';
 
 const client = new TypedCodexClient(
   new StdioTransport({ command: 'codex', args: ['app-server'] })
@@ -954,7 +954,7 @@ type TurnEvent =
 **Simple: ask and get an answer**
 
 ```ts
-import { Session, ApprovalPolicy } from 'codex-harness-kit';
+import { Session, ApprovalPolicy } from 'codex-client';
 
 const session = await Session.create({
   clientInfo: { name: 'my-app', version: '1.0' },
@@ -1229,7 +1229,7 @@ namespace fixtures {
 #### Testing Example
 
 ```ts
-import { TypedCodexClient, MockTransport, fixtures } from 'codex-harness-kit';
+import { TypedCodexClient, MockTransport, fixtures } from 'codex-client';
 
 test('handles a simple turn', async () => {
   const transport = new MockTransport();

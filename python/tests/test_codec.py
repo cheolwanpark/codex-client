@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from codex_harness_kit import JsonRpcCodec, JsonRpcCodecError
+from codex_client import JsonRpcCodec, JsonRpcCodecError
 
 
 def test_codec_round_trips_all_message_shapes() -> None:

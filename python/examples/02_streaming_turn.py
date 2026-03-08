@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from codex_harness_kit import ApprovalPolicy, Session, TurnEventType
+from codex_client import ApprovalPolicy, Session, TurnEventType
 
 from _common import CLIENT_INFO, print_section, require_codex_cli
 

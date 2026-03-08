@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import shutil
 
-from codex_harness_kit import client_info
+from codex_client import client_info
 
-CLIENT_INFO = client_info("codex-harness-kit-examples", "0.1.0")
+CLIENT_INFO = client_info("codex-client-examples", "0.1.0")
 
 
 def require_codex_cli() -> None:

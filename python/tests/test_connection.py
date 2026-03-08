@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 
 import pytest
 
-from codex_harness_kit import JsonRpcCodec, ProtocolConnection, ProtocolStreamError
+from codex_client import JsonRpcCodec, ProtocolConnection, ProtocolStreamError
 
 _QUEUE_EOF = object()
 

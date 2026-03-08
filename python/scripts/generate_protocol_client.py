@@ -11,7 +11,7 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_ROOT = REPO_ROOT / "schema"
-PACKAGE_ROOT = REPO_ROOT / "python" / "src" / "codex_harness_kit"
+PACKAGE_ROOT = REPO_ROOT / "python" / "src" / "codex_client"
 GENERATED_TYPES_PATH = PACKAGE_ROOT / "_generated.py"
 GENERATED_CLIENT_PATH = PACKAGE_ROOT / "_generated_client.py"
 

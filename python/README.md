@@ -1,10 +1,10 @@
-# codex-harness-kit for Python
+# codex-client for Python
 
 Async Python bindings for the Codex app-server protocol, from raw JSON-RPC transport up to `Session` / `Thread` / `Turn` runtime helpers.
 
 ## Table of Contents
 
-- [Why codex-harness-kit?](#why-codex-harness-kit)
+- [Why codex-client?](#why-codex-client)
 - [What You Get](#what-you-get)
 - [Quick Start](#quick-start)
 - [Installation and Setup](#installation-and-setup)
@@ -15,7 +15,7 @@ Async Python bindings for the Codex app-server protocol, from raw JSON-RPC trans
 - [Development](#development)
 - [Notes and Constraints](#notes-and-constraints)
 
-## Why codex-harness-kit?
+## Why codex-client?
 
 The Codex app-server protocol is powerful, but the raw interface is still a bidirectional JSON-RPC stream. A host needs to:
 
@@ -45,7 +45,7 @@ from __future__ import annotations
 
 import asyncio
 
-from codex_harness_kit import ApprovalPolicy, Session, client_info
+from codex_client import ApprovalPolicy, Session, client_info
 
 
 async def main() -> None:
@@ -101,7 +101,7 @@ from __future__ import annotations
 
 import asyncio
 
-from codex_harness_kit import ApprovalPolicy, Session, client_info
+from codex_client import ApprovalPolicy, Session, client_info
 
 
 async def main() -> None:
@@ -127,7 +127,7 @@ from __future__ import annotations
 
 import asyncio
 
-from codex_harness_kit import ApprovalPolicy, Session, TurnEventType, client_info
+from codex_client import ApprovalPolicy, Session, TurnEventType, client_info
 
 
 async def main() -> None:
@@ -162,7 +162,7 @@ from __future__ import annotations
 
 import asyncio
 
-from codex_harness_kit import ApprovalPolicy, Session, client_info, thread_params
+from codex_client import ApprovalPolicy, Session, client_info, thread_params
 
 
 async def main() -> None:
@@ -195,7 +195,7 @@ Each `Session` owns its own app-server connection and thread lifecycle.
 ```python
 import asyncio
 
-from codex_harness_kit import ApprovalPolicy, Session, client_info
+from codex_client import ApprovalPolicy, Session, client_info
 
 
 async def run_once(prompt: str) -> str:
@@ -228,8 +228,8 @@ from __future__ import annotations
 
 import asyncio
 
-from codex_harness_kit import ApprovalPolicy, Session, approve_command, client_info
-from codex_harness_kit.protocol_types import (
+from codex_client import ApprovalPolicy, Session, approve_command, client_info
+from codex_client.protocol_types import (
     CommandExecutionRequestApprovalParams,
     CommandExecutionRequestApprovalResponse,
 )
@@ -273,7 +273,7 @@ Drop to `TypedCodexClient` when you want direct request/notification control wit
 ```python
 from __future__ import annotations
 
-from codex_harness_kit import (
+from codex_client import (
     NotificationMethod,
     StdioTransport,
     TypedCodexClient,

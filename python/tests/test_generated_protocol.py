@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from codex_harness_kit._generated import (
+from codex_client._generated import (
     CLIENT_REQUEST_METHODS,
     SERVER_NOTIFICATION_METHODS,
     SERVER_REQUEST_METHODS,

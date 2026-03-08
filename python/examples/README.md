@@ -59,7 +59,7 @@ Run multiple independent host sessions at the same time.
 Host-controlled approvals.
 
 - build an `ApprovalPolicy.custom(...)`
-- use typed hook params from `codex_harness_kit.protocol_types`
+- use typed hook params from `codex_client.protocol_types`
 - use approval helper functions for common responses
 - attach the policy to a real session
 

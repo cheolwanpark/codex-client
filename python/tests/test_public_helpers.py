@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from codex_harness_kit import (
+from codex_client import (
     NotificationMethod,
     ServerRequestMethod,
     TurnEventType,
@@ -17,8 +17,8 @@ from codex_harness_kit import (
     tool_call_success,
     turn_options,
 )
-from codex_harness_kit import protocol_types
-from codex_harness_kit._generated import SERVER_NOTIFICATION_METHODS, SERVER_REQUEST_METHODS
+from codex_client import protocol_types
+from codex_client._generated import SERVER_NOTIFICATION_METHODS, SERVER_REQUEST_METHODS
 
 
 def test_protocol_types_re_exports_generated_symbols() -> None:

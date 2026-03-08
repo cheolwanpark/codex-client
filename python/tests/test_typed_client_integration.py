@@ -5,7 +5,7 @@ import shutil
 
 import pytest
 
-from codex_harness_kit import StdioTransport, TypedCodexClient
+from codex_client import StdioTransport, TypedCodexClient
 
 pytestmark = pytest.mark.integration
 

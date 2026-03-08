@@ -3,7 +3,7 @@ requires = ["hatchling>=1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "codex-harness-kit"
+name = "codex-client"
 version = "0.1.0"
 description = "Python protocol core for the Codex app-server protocol."
 readme = "README.md"
@@ -17,7 +17,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/codex_harness_kit"]
+packages = ["src/codex_client"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

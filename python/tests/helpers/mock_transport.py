@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 
-from codex_harness_kit import JsonRpcCodec
+from codex_client import JsonRpcCodec
 
 _QUEUE_EOF = object()
 

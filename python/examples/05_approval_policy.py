@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from codex_harness_kit import (
+from codex_client import (
     ApprovalPolicy,
     Session,
     approve_command,
@@ -10,7 +10,7 @@ from codex_harness_kit import (
     tool_answers,
     tool_call_failure,
 )
-from codex_harness_kit.protocol_types import (
+from codex_client.protocol_types import (
     CommandExecutionRequestApprovalParams,
     CommandExecutionRequestApprovalResponse,
     DynamicToolCallParams,

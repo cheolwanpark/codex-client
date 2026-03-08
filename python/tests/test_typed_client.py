@@ -5,7 +5,7 @@ import re
 
 import pytest
 
-from codex_harness_kit import (
+from codex_client import (
     NotificationMethod,
     ServerRequestMethod,
     JsonRpcCodec,
@@ -15,7 +15,7 @@ from codex_harness_kit import (
     TypedCodexClient,
     UnknownResponseIdError,
 )
-from codex_harness_kit._generated import CLIENT_REQUEST_METHODS, CLIENT_REQUEST_METHOD_TO_PARAMS
+from codex_client._generated import CLIENT_REQUEST_METHODS, CLIENT_REQUEST_METHOD_TO_PARAMS
 from tests.helpers.mock_transport import MockTransport
 
 _NULL_PARAM_METHODS = {

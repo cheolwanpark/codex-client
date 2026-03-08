@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from codex_harness_kit import ApprovalPolicy, Session, turn_options
+from codex_client import ApprovalPolicy, Session, turn_options
 from tests.helpers.mock_transport import MockTransport
 
 

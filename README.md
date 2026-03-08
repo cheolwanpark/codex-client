@@ -1,4 +1,4 @@
-# codex-harness-kit
+# codex-client
 
 Repo-first SDK work for the Codex app-server protocol.
 
@@ -20,7 +20,7 @@ That app-server layer is the feature this repository is built around:
 Your App
   |
   v
-codex-harness-kit/python
+codex-client/python
   |
   +-- Session Runtime
   |     Session -> Thread -> Turn

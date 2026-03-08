@@ -4,7 +4,7 @@ import shutil
 
 import pytest
 
-from codex_harness_kit import ApprovalPolicy, Session
+from codex_client import ApprovalPolicy, Session
 
 pytestmark = pytest.mark.integration
 

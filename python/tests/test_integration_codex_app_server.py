@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator
 
 import pytest
 
-from codex_harness_kit import ProtocolConnection, StdioTransport
+from codex_client import ProtocolConnection, StdioTransport
 
 pytestmark = pytest.mark.integration
 

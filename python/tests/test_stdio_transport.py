@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-from codex_harness_kit import ProtocolStreamError, StdioTransport
+from codex_client import ProtocolStreamError, StdioTransport
 
 
 HELPER = pathlib.Path(__file__).parent / "helpers" / "stdio_child.py"

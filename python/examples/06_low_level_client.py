@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from codex_harness_kit import (
+from codex_client import (
     NotificationMethod,
     StdioTransport,
     TypedCodexClient,
