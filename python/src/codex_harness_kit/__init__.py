@@ -1,6 +1,16 @@
 from .codec import JsonRpcCodec
+from .client import Middleware, MiddlewareContext, TypedCodexClient
 from .connection import ProtocolConnection
-from .errors import JsonRpcCodecError, ProtocolStreamError, TransportClosedError
+from .errors import (
+    ClientClosedError,
+    JsonRpcCodecError,
+    MiddlewareAbortedError,
+    ProtocolClientError,
+    ProtocolStreamError,
+    RequestTimeoutError,
+    TransportClosedError,
+    UnknownResponseIdError,
+)
 from .messages import (
     JSONValue,
     JsonRpcErrorObject,
@@ -15,6 +25,7 @@ from .messages import (
 from .transport import StdioTransport, Transport
 
 __all__ = [
+    "ClientClosedError",
     "JSONValue",
     "JsonRpcCodec",
     "JsonRpcCodecError",
@@ -24,11 +35,18 @@ __all__ = [
     "JsonRpcNotification",
     "JsonRpcRequest",
     "JsonRpcResponse",
+    "Middleware",
+    "MiddlewareAbortedError",
+    "MiddlewareContext",
     "ProtocolConnection",
+    "ProtocolClientError",
     "ProtocolStreamError",
     "RequestId",
+    "RequestTimeoutError",
     "StdioTransport",
+    "TypedCodexClient",
     "Transport",
     "TransportClosedError",
+    "UnknownResponseIdError",
     "W3cTraceContext",
 ]
