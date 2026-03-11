@@ -13,3 +13,10 @@ python/.pytest_cache/
 python/src/**/*.pyc
 python/tests/**/*.pyc
 python/**/__pycache__/
+
+# TypeScript build artifacts
+.pnpm-store/
+typescript/node_modules/
+typescript/dist/
+typescript/coverage/
+typescript/*.tsbuildinfo
