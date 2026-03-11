@@ -10,8 +10,11 @@ This package currently implements:
 - JSON-RPC message and error types
 - generated protocol types and method registries
 - `TypedCodexClient`
-
-The higher-level session runtime is not implemented yet.
+- `ApprovalPolicy`
+- `Session`
+- `Thread`
+- `Turn`
+- helper builders for common runtime payloads
 
 ## Development
 
@@ -25,7 +28,31 @@ pnpm typecheck
 pnpm build
 ```
 
-## Example
+## Layers
+
+- protocol core: `JsonRpcCodec`, `ProtocolConnection`, `StdioTransport`
+- typed protocol client: `TypedCodexClient`
+- session runtime: `Session`, `Thread`, `Turn`, `ApprovalPolicy`
+
+## Runtime Example
+
+```ts
+import { Session, clientInfo } from "@codex-client/typescript";
+
+const session = await Session.create({
+  clientInfo: clientInfo("my-app", "0.1.0"),
+});
+
+try {
+  const thread = await session.startEphemeralThread();
+  const answer = await thread.ask("Reply with exactly OK.");
+  console.log(answer);
+} finally {
+  await session.close();
+}
+```
+
+## Typed Client Example
 
 ```ts
 import { StdioTransport, TypedCodexClient } from "@codex-client/typescript";
@@ -43,3 +70,12 @@ await client.initialize(
 );
 await client.sendInitialized();
 ```
+
+## Examples
+
+See `typescript/examples/` for:
+
+- quickstart
+- streaming turn output
+- resume thread
+- approval policy
