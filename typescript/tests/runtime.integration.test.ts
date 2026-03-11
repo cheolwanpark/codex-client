@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 
 import { describe, expect, it } from "vitest";
 
-import { ApprovalPolicy, Session } from "../src/index.js";
+import { ApprovalPolicy, Session, threadParams } from "../src/index.js";
 
 const hasCodex = spawnSync("which", ["codex"], { encoding: "utf8" }).status === 0;
 
@@ -33,11 +33,12 @@ describe("Session runtime integration", () => {
           }
         }
 
-        const finalText = await turn.text();
-        if (deltas.length > 0) {
+        const completed = await turn.waitForCompletion();
+        if (deltas.length > 0 && completed.status === "completed") {
           expect(deltas.join("").trim()).toBe("OK");
         }
-        if (turn.status === "completed") {
+        if (completed.status === "completed") {
+          const finalText = await turn.text();
           expect(finalText.trim()).toBe("OK");
         }
       } finally {
@@ -46,4 +47,24 @@ describe("Session runtime integration", () => {
     },
     70_000,
   );
+
+  it("creates and reads back a persistent thread snapshot", async () => {
+    if (!hasCodex) {
+      return;
+    }
+
+    const session = await Session.create({
+      approvalPolicy: ApprovalPolicy.autoAccept(),
+      clientInfo: { name: "vitest", version: "0.1.0" },
+    });
+
+    try {
+      const thread = await session.startThread(threadParams({ ephemeral: false }));
+      const snapshot = await session.readThread(thread.id);
+      expect(snapshot.id).toBe(thread.id);
+      expect(snapshot.ephemeral).toBe(false);
+    } finally {
+      await session.close();
+    }
+  }, 30_000);
 });

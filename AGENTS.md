@@ -10,4 +10,5 @@
 - Prefer parity tests against the Python low-level behavior before introducing TypeScript-only abstractions.
 - Keep the TypeScript package Node-focused until a task explicitly asks for additional runtimes or transports.
 - When repo docs mention available bindings or TypeScript support level, keep them accurate now that the runtime layer exists.
+- Run TypeScript examples through the checked-in `pnpm example:*` scripts. `pnpm examples:build` compiles `src/` and `examples/` into `typescript/.examples-dist/` for local example execution.
 - If a commit is requested, follow the existing Conventional Commit pattern from `git log` such as `feat: ...`, `fix: ...`, `docs: ...`, or `refactor: ...`.

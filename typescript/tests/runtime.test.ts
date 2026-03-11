@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   ApprovalPolicy,
   Session,
+  TurnFailedError,
   turnOptions,
   type Thread as RuntimeThread,
   type Turn as RuntimeTurn,
@@ -10,10 +11,9 @@ import {
 import type {
   CommandExecResponse,
   ModelListResponse,
-  Thread,
   ThreadListResponse,
-  Turn as ProtocolTurn,
 } from "../src/generated.js";
+import { makeThread, makeTurn } from "./helpers/protocol-fixtures.js";
 import { MockTransport } from "./helpers/mock-transport.js";
 
 describe("Session runtime", () => {
@@ -353,6 +353,141 @@ describe("Session runtime", () => {
     }
   });
 
+  it("emits the remaining runtime event variants and preserves buffered items on partial completion", async () => {
+    const transport = new MockTransport();
+    const session = await createSession(transport);
+
+    try {
+      const thread = await startThread(session, transport);
+      const turn = await startTurn(thread, transport, "show all events");
+
+      await transport.inject({
+        method: "item/plan/delta",
+        params: {
+          delta: "Plan text",
+          itemId: "plan_1",
+          threadId: thread.id,
+          turnId: turn.id,
+        },
+      });
+      await transport.inject({
+        method: "item/reasoning/textDelta",
+        params: {
+          contentIndex: 0,
+          delta: "Think",
+          itemId: "reason_1",
+          threadId: thread.id,
+          turnId: turn.id,
+        },
+      });
+      await transport.inject({
+        method: "item/reasoning/summaryTextDelta",
+        params: {
+          delta: "Summary",
+          itemId: "reason_1",
+          summaryIndex: 0,
+          threadId: thread.id,
+          turnId: turn.id,
+        },
+      });
+      await transport.inject({
+        method: "item/commandExecution/outputDelta",
+        params: {
+          delta: "stdout",
+          itemId: "cmd_1",
+          threadId: thread.id,
+          turnId: turn.id,
+        },
+      });
+      await transport.inject({
+        method: "item/fileChange/outputDelta",
+        params: {
+          delta: "diff chunk",
+          itemId: "file_1",
+          threadId: thread.id,
+          turnId: turn.id,
+        },
+      });
+      await transport.inject({
+        method: "turn/diff/updated",
+        params: {
+          diff: "@@ -1 +1 @@",
+          threadId: thread.id,
+          turnId: turn.id,
+        },
+      });
+      await transport.inject({
+        method: "item/completed",
+        params: {
+          item: { id: "plan_1", text: "Plan text", type: "plan" },
+          threadId: thread.id,
+          turnId: turn.id,
+        },
+      });
+      await transport.inject({
+        method: "turn/completed",
+        params: {
+          threadId: thread.id,
+          turn: makeTurn("turn_1", { items: [], status: "completed" }),
+        },
+      });
+
+      const events = [];
+      for await (const event of turn) {
+        events.push(event);
+      }
+
+      expect(events).toEqual([
+        { delta: "Plan text", itemId: "plan_1", type: "plan_delta" },
+        { delta: "Think", itemId: "reason_1", type: "reasoning_delta" },
+        {
+          delta: "Summary",
+          itemId: "reason_1",
+          summaryIndex: 0,
+          type: "reasoning_summary_delta",
+        },
+        { delta: "stdout", itemId: "cmd_1", type: "command_output_delta" },
+        { delta: "diff chunk", itemId: "file_1", type: "file_change_delta" },
+        { diff: "@@ -1 +1 @@", type: "turn_diff_updated" },
+        { item: { id: "plan_1", text: "Plan text", type: "plan" }, type: "item_completed" },
+        {
+          turn: makeTurn("turn_1", {
+            items: [
+              { id: "plan_1", text: "Plan text", type: "plan" },
+              { content: ["Think"], id: "reason_1", summary: ["Summary"], type: "reasoning" },
+              {
+                aggregatedOutput: "stdout",
+                command: "",
+                commandActions: [],
+                cwd: "",
+                id: "cmd_1",
+                status: "inProgress",
+                type: "commandExecution",
+              },
+            ],
+            status: "completed",
+          }),
+          type: "completed",
+        },
+      ]);
+      expect(turn.items).toEqual([
+        { id: "plan_1", text: "Plan text", type: "plan" },
+        { content: ["Think"], id: "reason_1", summary: ["Summary"], type: "reasoning" },
+        {
+          aggregatedOutput: "stdout",
+          command: "",
+          commandActions: [],
+          cwd: "",
+          id: "cmd_1",
+          status: "inProgress",
+          type: "commandExecution",
+        },
+      ]);
+    } finally {
+      await session.close();
+    }
+  });
+
   it("returns final agent text from ask", async () => {
     const transport = new MockTransport();
     const session = await createSession(transport);
@@ -377,6 +512,84 @@ describe("Session runtime", () => {
       });
 
       await expect(askTask).resolves.toBe("OK");
+    } finally {
+      await session.close();
+    }
+  });
+
+  it("rejects text helpers when a turn completes failed", async () => {
+    const transport = new MockTransport();
+    const session = await createSession(transport);
+
+    try {
+      const thread = await startThread(session, transport);
+      const turn = await startTurn(thread, transport, "Reply with OK");
+
+      await transport.inject({
+        method: "turn/completed",
+        params: {
+          threadId: thread.id,
+          turn: makeTurn("turn_1", {
+            error: {
+              additionalDetails: null,
+              codexErrorInfo: "other",
+              message: "backend request failed",
+            },
+            status: "failed",
+          }),
+        },
+      });
+
+      await expect(turn.waitForCompletion()).resolves.toMatchObject({ status: "failed" });
+      await expect(turn.text()).rejects.toThrow(TurnFailedError);
+      await expect(turn.text()).rejects.toThrow("backend request failed");
+    } finally {
+      await session.close();
+    }
+  });
+
+  it("rejects ask when the turn fails", async () => {
+    const transport = new MockTransport();
+    const session = await createSession(transport);
+
+    try {
+      const threadTask = session.startThread({ ephemeral: true });
+      const threadStarted = await transport.nextSent();
+      await transport.inject({
+        id: threadStarted.id,
+        result: {
+          approvalPolicy: "never",
+          cwd: "/tmp",
+          model: "gpt-5.1-codex",
+          modelProvider: "openai",
+          sandbox: { type: "readOnly" },
+          thread: makeThread("thr_1"),
+        },
+      });
+      const thread = await threadTask;
+
+      const askTask = thread.ask("Reply with OK");
+      const turnStarted = await transport.nextSent();
+      await transport.inject({
+        id: turnStarted.id,
+        result: { turn: makeTurn("turn_1") },
+      });
+      await transport.inject({
+        method: "turn/completed",
+        params: {
+          threadId: "thr_1",
+          turn: makeTurn("turn_1", {
+            error: {
+              additionalDetails: null,
+              codexErrorInfo: "other",
+              message: "backend request failed",
+            },
+            status: "failed",
+          }),
+        },
+      });
+
+      await expect(askTask).rejects.toThrow(TurnFailedError);
     } finally {
       await session.close();
     }
@@ -730,40 +943,6 @@ async function startTurn(
     result: { turn: makeTurn("turn_1") },
   });
   return await turnTask;
-}
-
-function makeThread(
-  threadId: string,
-  overrides: Partial<Thread> = {},
-): Thread {
-  return {
-    cliVersion: "0.1.0",
-    createdAt: 0,
-    cwd: "/tmp",
-    ephemeral: true,
-    id: threadId,
-    modelProvider: "openai",
-    name: null,
-    preview: "",
-    source: "appServer",
-    status: { type: "idle" },
-    turns: [],
-    updatedAt: 0,
-    ...overrides,
-  };
-}
-
-function makeTurn(
-  turnId: string,
-  overrides: Partial<ProtocolTurn> = {},
-): ProtocolTurn {
-  return {
-    error: null,
-    id: turnId,
-    items: [],
-    status: "inProgress",
-    ...overrides,
-  };
 }
 
 function recordCall<T>(calls: Array<[string, string]>, kind: string, id: string, response: T): T {

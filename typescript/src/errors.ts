@@ -1,3 +1,5 @@
+import type { Turn } from "./generated.js";
+
 export class ProtocolError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);
@@ -68,5 +70,16 @@ export class MiddlewareAbortedError extends ProtocolClientError {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);
     this.name = "MiddlewareAbortedError";
+  }
+}
+
+export class TurnFailedError extends ProtocolClientError {
+  readonly turn: Turn;
+
+  constructor(turn: Turn) {
+    const reason = turn.error?.message ?? `Turn ${turn.id} completed with status "${turn.status}"`;
+    super(reason, { data: turn.error ?? turn });
+    this.name = "TurnFailedError";
+    this.turn = turn;
   }
 }

@@ -17,6 +17,7 @@ export {
   ProtocolStreamError,
   RequestTimeoutError,
   TransportClosedError,
+  TurnFailedError,
   UnknownResponseIdError,
 } from "./errors.js";
 export * from "./generated.js";

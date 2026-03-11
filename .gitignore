@@ -18,5 +18,6 @@ python/**/__pycache__/
 .pnpm-store/
 typescript/node_modules/
 typescript/dist/
+typescript/.examples-dist/
 typescript/coverage/
 typescript/*.tsbuildinfo

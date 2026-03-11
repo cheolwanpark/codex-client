@@ -55,6 +55,7 @@ import { StdioTransport, type Transport } from "./transport.js";
 import type { Middleware, TypedCodexClient } from "./client.js";
 import { TypedCodexClient as TypedCodexClientImpl } from "./client.js";
 import type { JSONValue } from "./messages.js";
+import { TurnFailedError } from "./errors.js";
 
 type MaybePromise<T> = T | Promise<T>;
 type AnyNotificationHandler = (params: unknown) => MaybePromise<void>;
@@ -790,6 +791,9 @@ export class TurnHandle implements AsyncIterable<TurnEvent> {
 
   async text(): Promise<string> {
     const turn = await this.waitForCompletion();
+    if (turn.status !== "completed") {
+      throw new TurnFailedError(turn);
+    }
     return turn.items
       .filter((item): item is Extract<ThreadItem, { type: "agentMessage" }> => item.type === "agentMessage")
       .map((item) => item.text)

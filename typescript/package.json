@@ -21,6 +21,12 @@
   "packageManager": "pnpm@10.32.0",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "examples:build": "tsc -p tsconfig.examples.json",
+    "example:quickstart": "pnpm examples:build && node ./.examples-dist/examples/01_quickstart.js",
+    "example:streaming": "pnpm examples:build && node ./.examples-dist/examples/02_streaming_turn.js",
+    "example:resume": "pnpm examples:build && node ./.examples-dist/examples/03_resume_thread.js",
+    "example:approval": "pnpm examples:build && node ./.examples-dist/examples/04_approval_policy.js",
+    "example:low-level": "pnpm examples:build && node ./.examples-dist/examples/05_low_level_client.js",
     "generate": "node ./scripts/generate-protocol-client.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json"
