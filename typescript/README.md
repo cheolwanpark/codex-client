@@ -2,14 +2,16 @@
 
 TypeScript bindings for the Codex app-server protocol.
 
-This package currently implements only the protocol core layer:
+This package currently implements:
 
 - `JsonRpcCodec`
 - `ProtocolConnection`
 - `StdioTransport`
 - JSON-RPC message and error types
+- generated protocol types and method registries
+- `TypedCodexClient`
 
-Higher layers such as a typed protocol client and session runtime will be added later.
+The higher-level session runtime is not implemented yet.
 
 ## Development
 
@@ -26,19 +28,18 @@ pnpm build
 ## Example
 
 ```ts
-import { ProtocolConnection, StdioTransport } from "@codex-client/typescript";
+import { StdioTransport, TypedCodexClient } from "@codex-client/typescript";
 
-const transport = new StdioTransport();
-const connection = new ProtocolConnection(transport);
+const client = TypedCodexClient.fromTransport(new StdioTransport());
 
-await connection.send({
-  id: 1,
-  method: "initialize",
-  params: {
+await client.initialize(
+  {
     clientInfo: {
       name: "my-app",
       version: "0.1.0",
     },
   },
-});
+  { timeoutMs: 5_000 },
+);
+await client.sendInitialized();
 ```

@@ -4,6 +4,8 @@
 - `schema/` is the source of truth for wire shapes. `DESIGN.md` is the source of truth for shared layering and lifecycle rules.
 - Keep bindings parallel where practical. Treat `python/` as the behavioral reference when building out `typescript/`.
 - Build the TypeScript binding bottom-up: messages/errors -> codec -> transport -> connection -> typed client -> runtime.
+- The TypeScript package now includes Layer 2. Preserve the separation between generated protocol surface and handwritten client/runtime logic.
+- If protocol-facing TypeScript types or wrapper methods change, update the codegen source and regenerate the checked-in files in `typescript/src/generated*.ts`.
 - Do not add higher-level runtime helpers to `typescript/` unless the task explicitly asks for them.
 - Prefer parity tests against the Python low-level behavior before introducing TypeScript-only abstractions.
 - Keep the TypeScript package Node-focused until a task explicitly asks for additional runtimes or transports.

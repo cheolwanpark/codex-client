@@ -2,7 +2,7 @@
 
 Repo-first SDK work for the Codex app-server protocol.
 
-This repository currently contains a Python binding and an early TypeScript binding for the Codex app-server protocol, plus the JSON schemas and design notes that define the protocol surface. The goal is to make it practical to embed Codex in your own host application without starting from raw JSON-RPC messages.
+This repository currently contains a Python binding and a TypeScript binding for the Codex app-server protocol, plus the JSON schemas and design notes that define the protocol surface. The goal is to make it practical to embed Codex in your own host application without starting from raw JSON-RPC messages.
 
 ## What Is Codex App-Server?
 
@@ -12,7 +12,7 @@ That app-server layer is the feature this repository is built around:
 
 - the protocol schemas in `schema/` describe the wire format
 - the Python package wraps the protocol at several abstraction levels
-- the TypeScript package currently implements the protocol core layer
+- the TypeScript package currently implements the protocol core and typed-client layers
 - the examples and tests exercise real `codex app-server` flows
 
 ## High-Level Architecture
@@ -21,9 +21,9 @@ That app-server layer is the feature this repository is built around:
 Your App
   |
   v
-codex-client/python
+codex-client/python or codex-client/typescript
   |
-  +-- Session Runtime
+  +-- Session Runtime (Python only today)
   |     Session -> Thread -> Turn
   |     ApprovalPolicy hooks
   |
@@ -52,7 +52,7 @@ Supporting artifacts in this repo:
 ## Repository Layout
 
 - `python/` contains the Python package, examples, tests, and generation script.
-- `typescript/` contains the TypeScript package for the protocol core layer.
+- `typescript/` contains the TypeScript package for the protocol core and typed-client layers.
 - `schema/` contains the Codex app-server JSON schemas used to drive typed bindings.
 - `DESIGN.md` documents the shared protocol lifecycle, object model, and multi-language SDK architecture.
 - `claude-agent-toolkit/` is a separate sibling project used here as a documentation/style reference, not part of the Python package itself.
@@ -60,9 +60,9 @@ Supporting artifacts in this repo:
 ## README Map
 
 - [`python/README.md`](python/README.md): primary SDK documentation, setup, quickstarts, examples, and development commands
-- [`typescript/README.md`](typescript/README.md): TypeScript protocol-core setup, API surface, and test commands
+- [`typescript/README.md`](typescript/README.md): TypeScript setup, typed-client API surface, and test commands
 
-Python is currently the most complete binding in this repository. The TypeScript binding currently covers the protocol core only.
+Python is currently the most complete binding in this repository. The TypeScript binding now covers the protocol core and typed-client layers.
 
 ## Getting Started
 

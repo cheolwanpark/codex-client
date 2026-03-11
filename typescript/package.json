@@ -1,7 +1,7 @@
 {
   "name": "@codex-client/typescript",
   "version": "0.1.0",
-  "description": "TypeScript protocol core for the Codex app-server protocol.",
+  "description": "TypeScript bindings for the Codex app-server protocol.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -21,6 +21,7 @@
   "packageManager": "pnpm@10.32.0",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "generate": "node ./scripts/generate-protocol-client.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
