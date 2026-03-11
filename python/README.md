@@ -355,7 +355,7 @@ This layer is intentionally minimal.
 
 ## Architecture
 
-The Python package follows the same three-layer shape described in `DESIGN.md`.
+The Python package implements the same three-layer model described in `DESIGN.md`.
 
 ```text
 Session / Thread / Turn / ApprovalPolicy

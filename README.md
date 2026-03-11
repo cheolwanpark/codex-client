@@ -46,13 +46,13 @@ Supporting artifacts in this repo:
 
 - `schema/` is the source of truth for the app-server API surface.
 - `python/scripts/generate_protocol_client.py` turns schema data into generated Python protocol types and client helpers.
-- `DESIGN.md` explains the protocol and the intended layering in more detail.
+- `DESIGN.md` is the shared cross-language design reference for protocol semantics and SDK layering.
 
 ## Repository Layout
 
 - `python/` contains the Python package, examples, tests, and generation script.
 - `schema/` contains the Codex app-server JSON schemas used to drive typed bindings.
-- `DESIGN.md` documents the protocol lifecycle, object model, and SDK architecture.
+- `DESIGN.md` documents the shared protocol lifecycle, object model, and multi-language SDK architecture.
 - `claude-agent-toolkit/` is a separate sibling project used here as a documentation/style reference, not part of the Python package itself.
 
 ## README Map
@@ -65,4 +65,4 @@ Python is the only language binding in this repository today. Add new language R
 
 If you want to use the SDK, start with [`python/README.md`](python/README.md).
 
-If you want the protocol and architecture reference first, read [`DESIGN.md`](DESIGN.md).
+If you want the cross-language protocol and architecture reference first, read [`DESIGN.md`](DESIGN.md).
